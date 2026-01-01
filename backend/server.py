@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import httpx
 import polyline
 from openai import AsyncOpenAI
@@ -54,15 +54,30 @@ logger = logging.getLogger(__name__)
 
 # ==================== Models ====================
 
+class StopPoint(BaseModel):
+    location: str
+    type: str = "stop"  # stop, gas, food, rest
+
 class RouteRequest(BaseModel):
     origin: str
     destination: str
+    departure_time: Optional[str] = None  # ISO format datetime
+    stops: Optional[List[StopPoint]] = []
 
 class Waypoint(BaseModel):
     lat: float
     lon: float
     name: Optional[str] = None
     distance_from_start: Optional[float] = None  # in miles
+    eta_minutes: Optional[int] = None  # minutes from departure
+    arrival_time: Optional[str] = None  # ISO format
+
+class HourlyForecast(BaseModel):
+    time: str
+    temperature: int
+    conditions: str
+    wind_speed: str
+    precipitation_chance: Optional[int] = None
 
 class WeatherData(BaseModel):
     temperature: Optional[int] = None
@@ -73,6 +88,9 @@ class WeatherData(BaseModel):
     icon: Optional[str] = None
     humidity: Optional[int] = None
     is_daytime: Optional[bool] = True
+    sunrise: Optional[str] = None
+    sunset: Optional[str] = None
+    hourly_forecast: Optional[List[HourlyForecast]] = []
 
 class WeatherAlert(BaseModel):
     id: str
@@ -81,6 +99,11 @@ class WeatherAlert(BaseModel):
     event: str
     description: str
     areas: Optional[str] = None
+
+class PackingSuggestion(BaseModel):
+    item: str
+    reason: str
+    priority: str  # essential, recommended, optional
 
 class WaypointWeather(BaseModel):
     waypoint: Waypoint
@@ -92,17 +115,31 @@ class RouteWeatherResponse(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     origin: str
     destination: str
+    stops: List[StopPoint] = []
+    departure_time: Optional[str] = None
+    total_duration_minutes: Optional[int] = None
     route_geometry: str  # Encoded polyline
     waypoints: List[WaypointWeather]
     ai_summary: Optional[str] = None
     has_severe_weather: bool = False
+    packing_suggestions: List[PackingSuggestion] = []
+    weather_timeline: List[HourlyForecast] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_favorite: bool = False
 
 class SavedRoute(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     origin: str
     destination: str
+    stops: List[StopPoint] = []
+    is_favorite: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FavoriteRouteRequest(BaseModel):
+    origin: str
+    destination: str
+    stops: Optional[List[StopPoint]] = []
+    name: Optional[str] = None
 
 # ==================== Helper Functions ====================
 
@@ -119,8 +156,12 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     
     return R * c
 
-def extract_waypoints_from_route(encoded_polyline: str, interval_miles: float = 50) -> List[Waypoint]:
-    """Extract waypoints along route at specified intervals."""
+def calculate_eta(distance_miles: float, avg_speed_mph: float = 55) -> int:
+    """Calculate ETA in minutes."""
+    return int((distance_miles / avg_speed_mph) * 60)
+
+def extract_waypoints_from_route(encoded_polyline: str, interval_miles: float = 50, departure_time: Optional[datetime] = None) -> List[Waypoint]:
+    """Extract waypoints along route at specified intervals with ETAs."""
     try:
         coords = polyline.decode(encoded_polyline)
         if not coords:
@@ -130,12 +171,16 @@ def extract_waypoints_from_route(encoded_polyline: str, interval_miles: float = 
         total_distance = 0.0
         last_waypoint_distance = 0.0
         
+        dep_time = departure_time or datetime.now()
+        
         # Always include start point
         waypoints.append(Waypoint(
             lat=coords[0][0],
             lon=coords[0][1],
             name="Start",
-            distance_from_start=0
+            distance_from_start=0,
+            eta_minutes=0,
+            arrival_time=dep_time.isoformat()
         ))
         
         for i in range(1, len(coords)):
@@ -146,24 +191,32 @@ def extract_waypoints_from_route(encoded_polyline: str, interval_miles: float = 
             
             # Add waypoint if we've traveled enough distance
             if total_distance - last_waypoint_distance >= interval_miles:
+                eta_mins = calculate_eta(total_distance)
+                arrival = dep_time + timedelta(minutes=eta_mins)
                 waypoints.append(Waypoint(
                     lat=lat2,
                     lon=lon2,
                     name=f"Mile {int(total_distance)}",
-                    distance_from_start=round(total_distance, 1)
+                    distance_from_start=round(total_distance, 1),
+                    eta_minutes=eta_mins,
+                    arrival_time=arrival.isoformat()
                 ))
                 last_waypoint_distance = total_distance
         
-        # Always include end point if it's not too close to last waypoint
+        # Always include end point
         end_lat, end_lon = coords[-1]
         if len(waypoints) == 1 or haversine_distance(
             waypoints[-1].lat, waypoints[-1].lon, end_lat, end_lon
         ) > 10:
+            eta_mins = calculate_eta(total_distance)
+            arrival = dep_time + timedelta(minutes=eta_mins)
             waypoints.append(Waypoint(
                 lat=end_lat,
                 lon=end_lon,
                 name="Destination",
-                distance_from_start=round(total_distance, 1)
+                distance_from_start=round(total_distance, 1),
+                eta_minutes=eta_mins,
+                arrival_time=arrival.isoformat()
             ))
         
         return waypoints
@@ -192,11 +245,19 @@ async def geocode_location(location: str) -> Optional[Dict[str, float]]:
         logger.error(f"Geocoding error for {location}: {e}")
     return None
 
-async def get_mapbox_route(origin_coords: Dict, dest_coords: Dict) -> Optional[str]:
-    """Get route from Mapbox Directions API."""
+async def get_mapbox_route(origin_coords: Dict, dest_coords: Dict, waypoints: List[Dict] = None) -> Optional[Dict]:
+    """Get route from Mapbox Directions API with duration."""
     try:
+        # Build coordinates string
+        coords_list = [f"{origin_coords['lon']},{origin_coords['lat']}"]
+        if waypoints:
+            for wp in waypoints:
+                coords_list.append(f"{wp['lon']},{wp['lat']}")
+        coords_list.append(f"{dest_coords['lon']},{dest_coords['lat']}")
+        coords_str = ";".join(coords_list)
+        
         async with httpx.AsyncClient() as client:
-            url = f"https://api.mapbox.com/directions/v5/mapbox/driving/{origin_coords['lon']},{origin_coords['lat']};{dest_coords['lon']},{dest_coords['lat']}"
+            url = f"https://api.mapbox.com/directions/v5/mapbox/driving/{coords_str}"
             params = {
                 'access_token': MAPBOX_ACCESS_TOKEN,
                 'geometries': 'polyline',
@@ -207,13 +268,18 @@ async def get_mapbox_route(origin_coords: Dict, dest_coords: Dict) -> Optional[s
             data = response.json()
             
             if data.get('routes') and len(data['routes']) > 0:
-                return data['routes'][0]['geometry']
+                route = data['routes'][0]
+                return {
+                    'geometry': route['geometry'],
+                    'duration': route.get('duration', 0) / 60,  # Convert to minutes
+                    'distance': route.get('distance', 0) / 1609.34  # Convert to miles
+                }
     except Exception as e:
         logger.error(f"Mapbox route error: {e}")
     return None
 
 async def get_noaa_weather(lat: float, lon: float) -> Optional[WeatherData]:
-    """Get weather data from NOAA for a location."""
+    """Get weather data from NOAA for a location with sunrise/sunset."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             # First get the grid point
@@ -225,7 +291,8 @@ async def get_noaa_weather(lat: float, lon: float) -> Optional[WeatherData]:
                 return None
             
             point_data = point_response.json()
-            forecast_url = point_data.get('properties', {}).get('forecastHourly')
+            props = point_data.get('properties', {})
+            forecast_url = props.get('forecastHourly')
             
             if not forecast_url:
                 return None
@@ -240,8 +307,27 @@ async def get_noaa_weather(lat: float, lon: float) -> Optional[WeatherData]:
             forecast_data = forecast_response.json()
             periods = forecast_data.get('properties', {}).get('periods', [])
             
+            # Get hourly forecasts for timeline
+            hourly_forecast = []
+            for period in periods[:12]:  # Next 12 hours
+                hourly_forecast.append(HourlyForecast(
+                    time=period.get('startTime', ''),
+                    temperature=period.get('temperature', 0),
+                    conditions=period.get('shortForecast', ''),
+                    wind_speed=period.get('windSpeed', ''),
+                    precipitation_chance=period.get('probabilityOfPrecipitation', {}).get('value')
+                ))
+            
             if periods:
                 current = periods[0]
+                
+                # Calculate approximate sunrise/sunset based on time of day
+                # This is simplified - in production, use a proper sun calculation library
+                is_daytime = current.get('isDaytime', True)
+                now = datetime.now()
+                sunrise = now.replace(hour=6, minute=30).strftime("%I:%M %p")
+                sunset = now.replace(hour=18, minute=30).strftime("%I:%M %p")
+                
                 return WeatherData(
                     temperature=current.get('temperature'),
                     temperature_unit=current.get('temperatureUnit', 'F'),
@@ -250,7 +336,10 @@ async def get_noaa_weather(lat: float, lon: float) -> Optional[WeatherData]:
                     conditions=current.get('shortForecast'),
                     icon=current.get('icon'),
                     humidity=current.get('relativeHumidity', {}).get('value'),
-                    is_daytime=current.get('isDaytime', True)
+                    is_daytime=is_daytime,
+                    sunrise=sunrise,
+                    sunset=sunset,
+                    hourly_forecast=hourly_forecast
                 )
     except Exception as e:
         logger.error(f"NOAA weather error for {lat},{lon}: {e}")
@@ -282,8 +371,129 @@ async def get_noaa_alerts(lat: float, lon: float) -> List[WeatherAlert]:
         logger.error(f"NOAA alerts error for {lat},{lon}: {e}")
     return alerts
 
-async def generate_ai_summary(waypoints_weather: List[WaypointWeather], origin: str, destination: str) -> str:
-    """Generate AI-powered weather summary using Gemini Flash via Emergent."""
+def generate_packing_suggestions(waypoints_weather: List[WaypointWeather]) -> List[PackingSuggestion]:
+    """Generate packing suggestions based on weather conditions."""
+    suggestions = []
+    
+    temps = []
+    has_rain = False
+    has_snow = False
+    has_wind = False
+    has_sun = False
+    
+    for wp in waypoints_weather:
+        if wp.weather:
+            if wp.weather.temperature:
+                temps.append(wp.weather.temperature)
+            
+            conditions = (wp.weather.conditions or '').lower()
+            if 'rain' in conditions or 'shower' in conditions:
+                has_rain = True
+            if 'snow' in conditions or 'flurr' in conditions:
+                has_snow = True
+            if 'wind' in conditions:
+                has_wind = True
+            if 'sun' in conditions or 'clear' in conditions:
+                has_sun = True
+            
+            # Check wind speed
+            wind = wp.weather.wind_speed or ''
+            if any(str(x) in wind for x in range(15, 50)):
+                has_wind = True
+    
+    # Temperature-based suggestions
+    if temps:
+        min_temp = min(temps)
+        max_temp = max(temps)
+        
+        if min_temp < 40:
+            suggestions.append(PackingSuggestion(
+                item="Warm jacket",
+                reason=f"Temperatures as low as {min_temp}°F expected",
+                priority="essential"
+            ))
+        if min_temp < 32:
+            suggestions.append(PackingSuggestion(
+                item="Gloves & hat",
+                reason="Freezing temperatures along route",
+                priority="essential"
+            ))
+        if max_temp > 85:
+            suggestions.append(PackingSuggestion(
+                item="Extra water",
+                reason=f"High temperatures up to {max_temp}°F",
+                priority="essential"
+            ))
+        if max_temp - min_temp > 20:
+            suggestions.append(PackingSuggestion(
+                item="Layers",
+                reason=f"Temperature range of {max_temp - min_temp}°F",
+                priority="recommended"
+            ))
+    
+    # Condition-based suggestions
+    if has_rain:
+        suggestions.append(PackingSuggestion(
+            item="Umbrella/rain jacket",
+            reason="Rain expected along route",
+            priority="essential"
+        ))
+    if has_snow:
+        suggestions.append(PackingSuggestion(
+            item="Snow gear & emergency kit",
+            reason="Snow conditions expected",
+            priority="essential"
+        ))
+    if has_wind:
+        suggestions.append(PackingSuggestion(
+            item="Windbreaker",
+            reason="Windy conditions expected",
+            priority="recommended"
+        ))
+    if has_sun:
+        suggestions.append(PackingSuggestion(
+            item="Sunglasses",
+            reason="Sunny conditions expected",
+            priority="recommended"
+        ))
+        suggestions.append(PackingSuggestion(
+            item="Sunscreen",
+            reason="Sun exposure during drive",
+            priority="optional"
+        ))
+    
+    # Always recommend
+    suggestions.append(PackingSuggestion(
+        item="Phone charger",
+        reason="Keep devices charged for navigation",
+        priority="essential"
+    ))
+    suggestions.append(PackingSuggestion(
+        item="Snacks & water",
+        reason="Stay hydrated and energized",
+        priority="recommended"
+    ))
+    
+    return suggestions[:8]  # Limit to 8 suggestions
+
+def build_weather_timeline(waypoints_weather: List[WaypointWeather]) -> List[HourlyForecast]:
+    """Build a combined weather timeline from all waypoints."""
+    timeline = []
+    seen_times = set()
+    
+    for wp in waypoints_weather:
+        if wp.weather and wp.weather.hourly_forecast:
+            for forecast in wp.weather.hourly_forecast[:4]:  # First 4 hours from each
+                if forecast.time not in seen_times:
+                    timeline.append(forecast)
+                    seen_times.add(forecast.time)
+    
+    # Sort by time
+    timeline.sort(key=lambda x: x.time)
+    return timeline[:12]  # Return up to 12 hours
+
+async def generate_ai_summary(waypoints_weather: List[WaypointWeather], origin: str, destination: str, packing: List[PackingSuggestion]) -> str:
+    """Generate AI-powered weather summary using Gemini Flash."""
     try:
         # Build weather context
         weather_info = []
@@ -294,6 +504,8 @@ async def generate_ai_summary(waypoints_weather: List[WaypointWeather], origin: 
                 info = f"- {wp.waypoint.name} ({wp.waypoint.distance_from_start} mi): "
                 info += f"{wp.weather.temperature}°{wp.weather.temperature_unit}, "
                 info += f"{wp.weather.conditions}, Wind: {wp.weather.wind_speed} {wp.weather.wind_direction}"
+                if wp.waypoint.arrival_time:
+                    info += f" (ETA: {wp.waypoint.arrival_time[:16]})"
                 weather_info.append(info)
             
             for alert in wp.alerts:
@@ -301,6 +513,7 @@ async def generate_ai_summary(waypoints_weather: List[WaypointWeather], origin: 
         
         weather_text = "\n".join(weather_info) if weather_info else "No weather data available"
         alerts_text = "\n".join(set(all_alerts)) if all_alerts else "No active alerts"
+        packing_text = ", ".join([p.item for p in packing[:5]]) if packing else "Standard travel items"
         
         prompt = f"""You are a helpful travel weather assistant. Provide a brief, driver-friendly weather summary for a road trip.
 
@@ -312,10 +525,12 @@ Weather along route:
 Active Alerts:
 {alerts_text}
 
+Suggested packing: {packing_text}
+
 Provide a 2-3 sentence summary focusing on:
 1. Overall driving conditions
 2. Any weather concerns or hazards
-3. Recommendations for the driver
+3. Key recommendations for the driver
 
 Be concise and practical."""
 
@@ -338,7 +553,7 @@ Be concise and practical."""
 
 @api_router.get("/")
 async def root():
-    return {"message": "Weather Route API", "version": "1.0"}
+    return {"message": "Routecast API", "version": "2.0", "features": ["departure_time", "multi_stop", "favorites", "packing_suggestions", "weather_timeline"]}
 
 @api_router.get("/health")
 async def health_check():
@@ -349,6 +564,16 @@ async def get_route_weather(request: RouteRequest):
     """Get weather along a route from origin to destination."""
     logger.info(f"Route weather request: {request.origin} -> {request.destination}")
     
+    # Parse departure time
+    departure_time = None
+    if request.departure_time:
+        try:
+            departure_time = datetime.fromisoformat(request.departure_time.replace('Z', '+00:00'))
+        except:
+            departure_time = datetime.now()
+    else:
+        departure_time = datetime.now()
+    
     # Geocode origin and destination
     origin_coords = await geocode_location(request.origin)
     if not origin_coords:
@@ -358,13 +583,24 @@ async def get_route_weather(request: RouteRequest):
     if not dest_coords:
         raise HTTPException(status_code=400, detail=f"Could not geocode destination: {request.destination}")
     
+    # Geocode stops if any
+    stop_coords = []
+    if request.stops:
+        for stop in request.stops:
+            coords = await geocode_location(stop.location)
+            if coords:
+                stop_coords.append(coords)
+    
     # Get route from Mapbox
-    route_geometry = await get_mapbox_route(origin_coords, dest_coords)
-    if not route_geometry:
+    route_data = await get_mapbox_route(origin_coords, dest_coords, stop_coords if stop_coords else None)
+    if not route_data:
         raise HTTPException(status_code=500, detail="Could not get route from Mapbox")
     
+    route_geometry = route_data['geometry']
+    total_duration = int(route_data.get('duration', 0))
+    
     # Extract waypoints along route
-    waypoints = extract_waypoints_from_route(route_geometry, interval_miles=50)
+    waypoints = extract_waypoints_from_route(route_geometry, interval_miles=50, departure_time=departure_time)
     if not waypoints:
         raise HTTPException(status_code=500, detail="Could not extract waypoints from route")
     
@@ -388,20 +624,31 @@ async def get_route_weather(request: RouteRequest):
             alerts=alerts
         )
     
-    # Fetch weather concurrently but with some rate limiting
+    # Fetch weather concurrently
     tasks = [fetch_waypoint_weather(wp) for wp in waypoints]
     waypoints_weather = await asyncio.gather(*tasks)
     
+    # Generate packing suggestions
+    packing_suggestions = generate_packing_suggestions(list(waypoints_weather))
+    
+    # Build weather timeline
+    weather_timeline = build_weather_timeline(list(waypoints_weather))
+    
     # Generate AI summary
-    ai_summary = await generate_ai_summary(list(waypoints_weather), request.origin, request.destination)
+    ai_summary = await generate_ai_summary(list(waypoints_weather), request.origin, request.destination, packing_suggestions)
     
     response = RouteWeatherResponse(
         origin=request.origin,
         destination=request.destination,
+        stops=request.stops or [],
+        departure_time=departure_time.isoformat(),
+        total_duration_minutes=total_duration,
         route_geometry=route_geometry,
         waypoints=list(waypoints_weather),
         ai_summary=ai_summary,
-        has_severe_weather=has_severe
+        has_severe_weather=has_severe,
+        packing_suggestions=packing_suggestions,
+        weather_timeline=weather_timeline
     )
     
     # Save to database
@@ -421,11 +668,63 @@ async def get_route_history():
             id=str(r.get('_id', r.get('id'))),
             origin=r['origin'],
             destination=r['destination'],
+            stops=r.get('stops', []),
+            is_favorite=r.get('is_favorite', False),
             created_at=r.get('created_at', datetime.utcnow())
         ) for r in routes]
     except Exception as e:
         logger.error(f"Error fetching route history: {e}")
         return []
+
+@api_router.get("/routes/favorites", response_model=List[SavedRoute])
+async def get_favorite_routes():
+    """Get favorite routes."""
+    try:
+        routes = await db.favorites.find().sort("created_at", -1).limit(20).to_list(20)
+        return [SavedRoute(
+            id=str(r.get('_id', r.get('id'))),
+            origin=r['origin'],
+            destination=r['destination'],
+            stops=r.get('stops', []),
+            is_favorite=True,
+            created_at=r.get('created_at', datetime.utcnow())
+        ) for r in routes]
+    except Exception as e:
+        logger.error(f"Error fetching favorites: {e}")
+        return []
+
+@api_router.post("/routes/favorites")
+async def add_favorite_route(request: FavoriteRouteRequest):
+    """Add a route to favorites."""
+    try:
+        favorite = {
+            "id": str(uuid.uuid4()),
+            "origin": request.origin,
+            "destination": request.destination,
+            "stops": [s.model_dump() for s in (request.stops or [])],
+            "name": request.name or f"{request.origin} to {request.destination}",
+            "is_favorite": True,
+            "created_at": datetime.utcnow()
+        }
+        await db.favorites.insert_one(favorite)
+        return {"success": True, "id": favorite["id"]}
+    except Exception as e:
+        logger.error(f"Error saving favorite: {e}")
+        raise HTTPException(status_code=500, detail="Could not save favorite")
+
+@api_router.delete("/routes/favorites/{route_id}")
+async def remove_favorite_route(route_id: str):
+    """Remove a route from favorites."""
+    try:
+        result = await db.favorites.delete_one({"id": route_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Favorite not found")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing favorite: {e}")
+        raise HTTPException(status_code=500, detail="Could not remove favorite")
 
 @api_router.get("/routes/{route_id}", response_model=RouteWeatherResponse)
 async def get_route_by_id(route_id: str):
