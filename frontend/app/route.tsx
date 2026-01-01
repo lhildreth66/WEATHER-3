@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   },
   markerToggle: {
     padding: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderRadius: 8,
     marginRight: 4,
   },
