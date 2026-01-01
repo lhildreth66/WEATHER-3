@@ -149,22 +149,16 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
   const center = routeCoords[Math.floor(routeCoords.length / 2)];
   
   const markersJs = waypoints.map((wp, idx) => {
-    const color = wp.alerts.length > 0 ? '#ef4444' : (idx === 0 ? '#22c55e' : idx === waypoints.length - 1 ? '#ef4444' : '#3b82f6');
-    const label = wp.weather?.temperature ? `${wp.weather.temperature}°` : (wp.alerts.length > 0 ? '⚠' : '?');
+    const hasAlert = wp.alerts.length > 0;
+    const temp = wp.weather?.temperature || '?';
+    const bgColor = hasAlert ? '#dc2626' : '#3b82f6';
+    
     return `
-      var marker${idx} = L.circleMarker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {
-        radius: 14,
-        fillColor: '${color}',
-        color: '#ffffff',
-        weight: 3,
-        fillOpacity: 0.9
-      }).addTo(map);
-      
       var icon${idx} = L.divIcon({
         className: 'temp-marker',
-        html: '<div style="background:${color};color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;border:2px solid #fff;white-space:nowrap;">${label}</div>',
-        iconSize: [50, 30],
-        iconAnchor: [25, 15]
+        html: '<div style="background:${bgColor};color:#fff;padding:6px 10px;border-radius:16px;font-size:14px;font-weight:bold;border:3px solid #fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);">${temp}°</div>',
+        iconSize: [60, 36],
+        iconAnchor: [30, 18]
       });
       L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon${idx}}).addTo(map);
     `;
@@ -202,13 +196,13 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
         // Draw route line with glow effect
         L.polyline(routeCoords, {
           color: '#ff6b6b',
-          weight: 6,
+          weight: 8,
           opacity: 0.3
         }).addTo(map);
         
         L.polyline(routeCoords, {
           color: '#ef4444',
-          weight: 4,
+          weight: 5,
           opacity: 1
         }).addTo(map);
         
@@ -216,7 +210,7 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
         
         // Fit map to route bounds with padding
         var bounds = L.latLngBounds(routeCoords);
-        map.fitBounds(bounds, { padding: [30, 30] });
+        map.fitBounds(bounds, { padding: [40, 40] });
       </script>
     </body>
     </html>
