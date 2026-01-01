@@ -144,11 +144,11 @@ function getMapboxStaticUrl(routeGeometry: string, waypoints: WaypointWeather[])
 }
 
 // Generate HTML for WebView map
-function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): string {
+function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[], showMarkers: boolean = true): string {
   const routeCoords = decodePolyline(routeGeometry);
   const center = routeCoords[Math.floor(routeCoords.length / 2)];
   
-  const markersJs = waypoints.map((wp, idx) => {
+  const markersJs = showMarkers ? waypoints.map((wp, idx) => {
     const hasAlert = wp.alerts.length > 0;
     const temp = wp.weather?.temperature || '?';
     const bgColor = hasAlert ? '#dc2626' : '#3b82f6';
@@ -169,7 +169,7 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
         L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon}).addTo(map);
       })();
     `;
-  }).join('\n');
+  }).join('\n') : '';
 
   const routeCoordsJs = routeCoords.map(c => `[${c[0]}, ${c[1]}]`).join(',');
 
