@@ -311,6 +311,13 @@ export default function RouteScreen() {
     } else {
       setIsSpeaking(true);
       
+      // Calculate alerts locally
+      const allAlertsLocal = routeData.waypoints.flatMap((wp) => wp.alerts);
+      const uniqueAlertsLocal = allAlertsLocal.filter(
+        (alert, index, self) => index === self.findIndex((a) => a.id === alert.id)
+      );
+      const hasAlertsLocal = uniqueAlertsLocal.length > 0;
+      
       // Build comprehensive weather briefing
       const parts: string[] = [];
       
@@ -325,8 +332,8 @@ export default function RouteScreen() {
       parts.push(`Total distance is ${Math.round(totalDist)} miles, taking ${duration}.`);
       
       // Weather alerts warning
-      if (hasAlerts) {
-        parts.push(`Warning: There are ${uniqueAlerts.length} weather alerts along your route. Please use caution.`);
+      if (hasAlertsLocal) {
+        parts.push(`Warning: There are ${uniqueAlertsLocal.length} weather alerts along your route. Please use caution.`);
       }
       
       // Weather at each waypoint
@@ -362,9 +369,9 @@ export default function RouteScreen() {
       }
       
       // Sunrise/sunset
-      const sunTimes = routeData.waypoints.find(wp => wp.weather?.sunrise)?.weather;
-      if (sunTimes?.sunrise && sunTimes?.sunset) {
-        parts.push(`Sunrise is at ${sunTimes.sunrise}, sunset at ${sunTimes.sunset}.`);
+      const sunTimesLocal = routeData.waypoints.find(wp => wp.weather?.sunrise)?.weather;
+      if (sunTimesLocal?.sunrise && sunTimesLocal?.sunset) {
+        parts.push(`Sunrise is at ${sunTimesLocal.sunrise}, sunset at ${sunTimesLocal.sunset}.`);
       }
       
       // AI Summary or closing
