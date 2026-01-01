@@ -138,11 +138,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: true
           agent: "main"
           comment: "GET /api/routes/history returns recent routes from MongoDB"
+        - working: true
+          agent: "testing"
+          comment: "TESTED: Route history endpoint working correctly. Returns proper list structure with 4 saved routes. Each route has required fields (id, origin, destination, created_at). MongoDB integration working properly."
 
   - task: "AI weather summary"
     implemented: true
