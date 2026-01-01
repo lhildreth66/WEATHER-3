@@ -154,13 +154,20 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
     const bgColor = hasAlert ? '#dc2626' : '#3b82f6';
     
     return `
-      var icon${idx} = L.divIcon({
-        className: 'temp-marker',
-        html: '<div style="background:${bgColor};color:#fff;padding:6px 10px;border-radius:16px;font-size:14px;font-weight:bold;border:3px solid #fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);">${temp}°</div>',
-        iconSize: [60, 36],
-        iconAnchor: [30, 18]
-      });
-      L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon${idx}}).addTo(map);
+      (function() {
+        var markerDiv = document.createElement('div');
+        markerDiv.innerHTML = '<div style="background:${bgColor};color:#fff;padding:5px 10px;border-radius:14px;font-size:13px;font-weight:bold;border:2px solid #fff;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.5);text-align:center;">${temp}°</div>';
+        markerDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;';
+        
+        var icon = L.divIcon({
+          className: '',
+          html: markerDiv.innerHTML,
+          iconSize: [50, 28],
+          iconAnchor: [25, 14]
+        });
+        
+        L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon}).addTo(map);
+      })();
     `;
   }).join('\n');
 
@@ -174,9 +181,9 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
-        * { margin: 0; padding: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body, #map { width: 100%; height: 100%; background: #1a1a1a; }
-        .temp-marker { background: transparent !important; border: none !important; }
+        .leaflet-div-icon { background: transparent !important; border: none !important; }
       </style>
     </head>
     <body>
@@ -202,7 +209,7 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
         
         L.polyline(routeCoords, {
           color: '#ef4444',
-          weight: 5,
+          weight: 4,
           opacity: 1
         }).addTo(map);
         
@@ -210,7 +217,7 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[]): s
         
         // Fit map to route bounds with padding
         var bounds = L.latLngBounds(routeCoords);
-        map.fitBounds(bounds, { padding: [40, 40] });
+        map.fitBounds(bounds, { padding: [50, 50] });
       </script>
     </body>
     </html>
