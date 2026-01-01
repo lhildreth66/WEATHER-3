@@ -101,3 +101,110 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: Build a mobile app (Routecast) that shows weather along a travel route. Features include entering origin/destination, showing map with route line and weather markers, displaying weather at points along the route (temp, wind, conditions), AI-powered weather summary, and push notifications for bad weather.
+
+backend:
+  - task: "Health check endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET /api/health returns healthy status"
+
+  - task: "Route weather endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "POST /api/route/weather geocodes locations, gets Mapbox route, fetches NOAA weather for waypoints"
+
+  - task: "Route history endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET /api/routes/history returns recent routes from MongoDB"
+
+  - task: "AI weather summary"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 1
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "main"
+          comment: "Using OpenAI client with Emergent LLM key at api.emergentagi.com/v1 - getting connection error. Fallback summary is displayed instead."
+
+frontend:
+  - task: "Home screen with route input"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Route Planner card with origin/destination inputs, push alerts toggle, recent routes list. Matches weather-tracker-25 design."
+
+  - task: "Route results screen"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/route.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Shows weather summary, waypoint cards with temp/conditions/wind, alert tags. Uses WebView map on mobile, placeholder on web."
+
+  - task: "Push notifications for alerts"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/_layout.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "expo-notifications configured, schedules notification when severe weather detected"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Route weather endpoint"
+    - "Route history endpoint"
+  stuck_tasks:
+    - "AI weather summary"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Routecast MVP implemented. Backend has route weather, history, and geocoding APIs. NOAA weather data is working. AI summary has connection issues with Emergent API endpoint - using fallback text. Frontend matches weather-tracker-25 design with dark theme and burgundy cards. Please test backend endpoints."
