@@ -109,9 +109,16 @@ export default function HomeScreen() {
                   <MaterialCommunityIcons name="routes" size={28} color="#1a1a1a" />
                 </View>
                 <View style={styles.headerText}>
-                  <Text style={styles.title}>Route Planner</Text>
-                  <Text style={styles.subtitle}>Check weather along your drive</Text>
+                  <Text style={styles.title}>Routecast</Text>
+                  <Text style={styles.subtitle}>Weather forecasts for your journey</Text>
                 </View>
+              </View>
+
+              {/* App Description */}
+              <View style={styles.descriptionBox}>
+                <Text style={styles.descriptionText}>
+                  Plan your road trip with confidence. See real-time weather conditions, alerts, and AI-powered recommendations for every mile of your drive.
+                </Text>
               </View>
 
               {/* Origin Input */}
