@@ -882,10 +882,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   waypointName: {
-    color: '#a1a1aa',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    color: '#eab308',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   },
   alertBadge: {
     backgroundColor: '#dc2626',
