@@ -1406,6 +1406,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  // Radar Map styles
+  radarBtn: {
+    padding: 8,
+    marginRight: 4,
+  },
+  radarModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  radarModalContent: {
+    flex: 1,
+    backgroundColor: '#18181b',
+  },
+  radarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#27272a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3f3f46',
+  },
+  radarHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  radarTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  radarWebView: {
+    flex: 1,
+  },
   // Chat styles
   chatFab: {
     position: 'absolute',
