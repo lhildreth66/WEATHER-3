@@ -990,34 +990,17 @@ export default function HomeScreen() {
                 ))}
               </View>
               
-              {/* Listening indicator */}
-              {isListening && (
-                <View style={styles.listeningIndicator}>
-                  <View style={styles.listeningPulse} />
-                  <Text style={styles.listeningText}>🎤 Listening... speak now</Text>
-                </View>
-              )}
-              
               {/* Input */}
               <View style={styles.chatInputRow}>
-                {/* Microphone button */}
-                <TouchableOpacity 
-                  style={[styles.micBtn, isListening && styles.micBtnActive]}
-                  onPress={() => {
-                    console.log('Mic button pressed');
-                    startVoiceRecognition();
-                  }}
-                >
-                  <Ionicons 
-                    name={isListening ? "radio-button-on" : "mic"} 
-                    size={22} 
-                    color={isListening ? "#ef4444" : "#fff"} 
-                  />
-                </TouchableOpacity>
-                
                 <TextInput
-                  style={styles.chatInput}
-                  placeholder="Type or tap mic to speak..."
+                  style={styles.chatInputFull}
+                  placeholder="Type your question here..."
+                  placeholderTextColor="#6b7280"
+                  value={chatMessage}
+                  onChangeText={setChatMessage}
+                  onSubmitEditing={() => sendChatMessage()}
+                  returnKeyType="send"
+                />
                   placeholderTextColor="#6b7280"
                   value={chatMessage}
                   onChangeText={setChatMessage}
