@@ -927,7 +927,7 @@ def calculate_optimal_departure(origin: str, destination: str, waypoints_weather
         conditions_summary = "Good driving conditions throughout your route"
     elif current_hazards <= 2 and safety.overall_score >= 60:
         recommendation = "👍 Acceptable conditions - drive with caution"
-        conditions_summary = f"Some weather: {', '.join(set(current_conditions)[:2]) if current_conditions else 'Minor concerns'}"
+        conditions_summary = f"Some weather: {', '.join(list(set(current_conditions))[:2]) if current_conditions else 'Minor concerns'}"
     else:
         # Suggest waiting
         recommendation = "⏰ Consider departing 2-3 hours later for improved conditions"
