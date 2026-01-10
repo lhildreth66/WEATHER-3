@@ -10,11 +10,16 @@ import {
   Platform,
   Share,
   Linking,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { format, parseISO } from 'date-fns';
+import axios from 'axios';
+
+const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 // Types
 interface RoadCondition {
