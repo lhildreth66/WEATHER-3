@@ -215,46 +215,80 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-// Generate HTML for WebView map
+// Generate HTML for WebView map - Weather icons on route like Drive Weather app
 function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[], showAlertMarkers: boolean = true): string {
   const routeCoords = decodePolyline(routeGeometry);
   const center = routeCoords[Math.floor(routeCoords.length / 2)];
   
-  const alertWaypoints = waypoints.filter(wp => wp.alerts.length > 0);
-  
-  const markersJs = showAlertMarkers && alertWaypoints.length > 0 ? alertWaypoints.map((wp, idx) => {
+  // Get weather emoji based on conditions
+  const getWeatherEmoji = (conditions: string | null, temp: number | null, hasAlerts: boolean): { icon: string, color: string } => {
+    if (hasAlerts) return { icon: '⚠️', color: '#dc2626' }; // Red for alerts
+    if (!conditions) return { icon: '☁️', color: '#6b7280' };
+    const c = conditions.toLowerCase();
+    
+    if (c.includes('thunder') || c.includes('storm')) return { icon: '⛈️', color: '#dc2626' };
+    if (c.includes('heavy rain')) return { icon: '🌧️', color: '#3b82f6' };
+    if (c.includes('rain') || c.includes('shower')) return { icon: '🌧️', color: '#60a5fa' };
+    if (c.includes('snow') || c.includes('flurr') || c.includes('blizzard')) return { icon: '❄️', color: '#93c5fd' };
+    if (c.includes('fog') || c.includes('mist') || c.includes('haze')) return { icon: '🌫️', color: '#9ca3af' };
+    if (c.includes('wind')) return { icon: '💨', color: '#22c55e' };
+    if ((temp !== null && temp <= 32)) return { icon: '🥶', color: '#3b82f6' };
+    if (c.includes('cloud') || c.includes('overcast')) return { icon: '☁️', color: '#6b7280' };
+    if (c.includes('clear') || c.includes('sunny') || c.includes('fair')) return { icon: '☀️', color: '#f59e0b' };
+    return { icon: '⛅', color: '#94a3b8' };
+  };
+
+  // Generate weather markers at each waypoint (placed ON the route)
+  const weatherMarkersJs = waypoints.map((wp, idx) => {
+    const weather = getWeatherEmoji(
+      wp.weather?.conditions || null, 
+      wp.weather?.temperature || null,
+      wp.alerts.length > 0
+    );
+    const temp = wp.weather?.temperature || '--';
+    const isAlert = wp.alerts.length > 0;
+    const bgColor = isAlert ? '#7f1d1d' : '#27272a';
+    const borderColor = isAlert ? '#ef4444' : weather.color;
+    
     return `
       (function() {
         var icon = L.divIcon({
-          className: '',
-          html: '<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:22px solid #dc2626;position:relative;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));"><span style="position:absolute;top:6px;left:-4px;color:#fff;font-size:14px;font-weight:bold;">!</span></div>',
-          iconSize: [24, 22],
-          iconAnchor: [12, 22]
+          className: 'weather-marker',
+          html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="background:${bgColor};border:3px solid ${borderColor};border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">${weather.icon}</div><div style="background:${bgColor};border:2px solid ${borderColor};border-radius:12px;padding:2px 6px;margin-top:-4px;font-size:11px;font-weight:bold;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);">${temp}°</div></div>',
+          iconSize: [50, 60],
+          iconAnchor: [25, 30]
         });
-        L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon}).addTo(map);
+        var marker = L.marker([${wp.waypoint.lat}, ${wp.waypoint.lon}], {icon: icon}).addTo(map);
+        marker.bindPopup('<div style="text-align:center;padding:8px;"><b style="font-size:14px;">${wp.waypoint.name?.replace(/'/g, "\\'") || 'Point ' + (idx + 1)}</b><br><span style="font-size:13px;">${temp}°F ${wp.weather?.conditions || ''}</span>${isAlert ? '<br><span style="color:red;font-weight:bold;">⚠️ ' + wp.alerts[0]?.event + '</span>' : ''}</div>');
       })();
     `;
-  }).join('\n') : '';
+  }).join('\n');
 
-  const startEndMarkers = `
+  // Start marker (larger green dot)
+  const startMarker = `
     (function() {
       var startIcon = L.divIcon({
         className: '',
-        html: '<div style="background:#22c55e;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);"></div>',
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
+        html: '<div style="background:#22c55e;width:20px;height:20px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.5);"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
       });
-      L.marker([${routeCoords[0][0]}, ${routeCoords[0][1]}], {icon: startIcon}).addTo(map);
+      L.marker([${routeCoords[0][0]}, ${routeCoords[0][1]}], {icon: startIcon, zIndexOffset: 1000}).addTo(map)
+        .bindPopup('<b>Start</b>');
     })();
-    
+  `;
+
+  // End marker (red flag)
+  const endMarker = `
     (function() {
       var endIcon = L.divIcon({
         className: '',
-        html: '<div style="background:#ef4444;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);"></div>',
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
+        html: '<div style="background:#ef4444;width:20px;height:20px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.5);"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
       });
-      L.marker([${routeCoords[routeCoords.length - 1][0]}, ${routeCoords[routeCoords.length - 1][1]}], {icon: endIcon}).addTo(map);
+      L.marker([${routeCoords[routeCoords.length - 1][0]}, ${routeCoords[routeCoords.length - 1][1]}], {icon: endIcon, zIndexOffset: 1000}).addTo(map)
+        .bindPopup('<b>Destination</b>');
     })();
   `;
 
@@ -271,6 +305,9 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[], sh
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body, #map { width: 100%; height: 100%; background: #1a1a1a; }
         .leaflet-div-icon { background: transparent !important; border: none !important; }
+        .weather-marker { background: transparent !important; border: none !important; }
+        .leaflet-popup-content-wrapper { background: #27272a; color: #fff; border-radius: 10px; }
+        .leaflet-popup-tip { background: #27272a; }
       </style>
     </head>
     <body>
@@ -287,23 +324,27 @@ function generateMapHtml(routeGeometry: string, waypoints: WaypointWeather[], sh
         
         var routeCoords = [${routeCoordsJs}];
         
+        // Route glow effect
         L.polyline(routeCoords, {
-          color: '#ff6b6b',
-          weight: 8,
-          opacity: 0.3
+          color: '#60a5fa',
+          weight: 12,
+          opacity: 0.25
         }).addTo(map);
         
+        // Main route line (dashed like competitor)
         L.polyline(routeCoords, {
-          color: '#ef4444',
-          weight: 4,
-          opacity: 1
+          color: '#3b82f6',
+          weight: 5,
+          opacity: 0.9,
+          dashArray: '10, 8'
         }).addTo(map);
         
-        ${startEndMarkers}
-        ${markersJs}
+        ${startMarker}
+        ${endMarker}
+        ${showAlertMarkers ? weatherMarkersJs : ''}
         
         var bounds = L.latLngBounds(routeCoords);
-        map.fitBounds(bounds, { padding: [50, 50] });
+        map.fitBounds(bounds, { padding: [60, 60] });
       </script>
     </body>
     </html>
