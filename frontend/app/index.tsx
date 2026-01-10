@@ -90,6 +90,79 @@ export default function HomeScreen() {
     }
   };
 
+  // Debounced autocomplete function
+  const fetchAutocomplete = async (query: string, type: 'origin' | 'destination') => {
+    if (query.length < 2) {
+      if (type === 'origin') {
+        setOriginSuggestions([]);
+        setShowOriginSuggestions(false);
+      } else {
+        setDestSuggestions([]);
+        setShowDestSuggestions(false);
+      }
+      return;
+    }
+
+    setAutocompleteLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, {
+        params: { query, limit: 5 }
+      });
+      
+      if (type === 'origin') {
+        setOriginSuggestions(response.data);
+        setShowOriginSuggestions(response.data.length > 0);
+      } else {
+        setDestSuggestions(response.data);
+        setShowDestSuggestions(response.data.length > 0);
+      }
+    } catch (err) {
+      console.log('Autocomplete error:', err);
+    } finally {
+      setAutocompleteLoading(false);
+    }
+  };
+
+  // Debounce timer refs
+  const originDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleOriginChange = (text: string) => {
+    setOrigin(text);
+    
+    // Debounce autocomplete
+    if (originDebounceRef.current) {
+      clearTimeout(originDebounceRef.current);
+    }
+    originDebounceRef.current = setTimeout(() => {
+      fetchAutocomplete(text, 'origin');
+    }, 300);
+  };
+
+  const handleDestinationChange = (text: string) => {
+    setDestination(text);
+    
+    // Debounce autocomplete
+    if (destDebounceRef.current) {
+      clearTimeout(destDebounceRef.current);
+    }
+    destDebounceRef.current = setTimeout(() => {
+      fetchAutocomplete(text, 'destination');
+    }, 300);
+  };
+
+  const selectOriginSuggestion = (suggestion: AutocompleteSuggestion) => {
+    setOrigin(suggestion.place_name);
+    setShowOriginSuggestions(false);
+    setOriginSuggestions([]);
+  };
+
+  const selectDestSuggestion = (suggestion: AutocompleteSuggestion) => {
+    setDestination(suggestion.place_name);
+    setShowDestSuggestions(false);
+    setDestSuggestions([]);
+  };
+
   const fetchRecentRoutes = async () => {
     try {
       const response = await axios.get(`${API_BASE}/api/routes/history`);
