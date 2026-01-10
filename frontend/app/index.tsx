@@ -1647,4 +1647,37 @@ const styles = StyleSheet.create({
   chatSendBtnDisabled: {
     backgroundColor: '#3f3f46',
   },
+  micBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#3f3f46',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micBtnActive: {
+    backgroundColor: '#7f1d1d',
+  },
+  listeningIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#27272a',
+    marginHorizontal: 12,
+    borderRadius: 12,
+    gap: 10,
+  },
+  listeningPulse: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#ef4444',
+  },
+  listeningText: {
+    color: '#fecaca',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
