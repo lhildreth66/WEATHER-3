@@ -489,15 +489,44 @@ export default function RouteScreen() {
       .map(wp => `${wp.waypoint.name}: ${wp.weather?.temperature}°F ${wp.weather?.conditions}`)
       .join('\n');
     
-    const message = `🚗 Routecast Weather Report\n\n📍 ${routeData.origin} → ${routeData.destination}\n⏱ ${routeData.total_duration_minutes ? formatDuration(routeData.total_duration_minutes) : 'N/A'}\n\n🌤 Weather:\n${temps}\n\n${routeData.ai_summary || ''}`;
+    const safetyInfo = routeData.safety_score 
+      ? `\n🛡 Safety Score: ${routeData.safety_score.overall_score}/100 (${routeData.safety_score.risk_level.toUpperCase()} risk)`
+      : '';
+    
+    const alertCount = routeData.hazard_alerts?.length || 0;
+    const alertInfo = alertCount > 0 ? `\n⚠️ ${alertCount} weather alerts along route` : '\n✅ No major weather alerts';
+    
+    const message = `🚗 Routecast Weather Report\n\n📍 ${routeData.origin} → ${routeData.destination}\n⏱ ${routeData.total_duration_minutes ? formatDuration(routeData.total_duration_minutes) : 'N/A'}${safetyInfo}${alertInfo}\n\n🌤 Weather Along Route:\n${temps}\n\n${routeData.ai_summary || 'Safe travels!'}`;
     
     try {
-      await Share.share({
-        message,
-        title: 'Routecast Weather Report',
-      });
+      if (Platform.OS === 'web') {
+        // Web share or clipboard fallback
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Routecast Weather Report',
+            text: message,
+          });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(message);
+          alert('Route weather copied to clipboard!');
+        }
+      } else {
+        await Share.share({
+          message,
+          title: 'Routecast Weather Report',
+        });
+      }
     } catch (e) {
       console.error('Error sharing:', e);
+      // Fallback for any error
+      if (Platform.OS === 'web' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(message);
+          alert('Route weather copied to clipboard!');
+        } catch (clipboardError) {
+          console.error('Clipboard error:', clipboardError);
+        }
+      }
     }
   };
 
