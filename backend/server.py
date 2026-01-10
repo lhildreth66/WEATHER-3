@@ -815,6 +815,50 @@ async def geocode(location: str):
         raise HTTPException(status_code=404, detail="Location not found")
     return coords
 
+@api_router.get("/geocode/autocomplete")
+async def autocomplete_location(query: str, limit: int = 5):
+    """Get autocomplete suggestions for a location query using Mapbox."""
+    if not query or len(query) < 2:
+        return []
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json"
+            params = {
+                'access_token': MAPBOX_ACCESS_TOKEN,
+                'autocomplete': 'true',
+                'types': 'place,locality,address,poi',
+                'country': 'US',
+                'limit': limit
+            }
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            suggestions = []
+            for feature in data.get('features', []):
+                place_name = feature.get('place_name', '')
+                text = feature.get('text', '')
+                
+                # Extract components
+                context = feature.get('context', [])
+                region = ''
+                for ctx in context:
+                    if ctx.get('id', '').startswith('region'):
+                        region = ctx.get('short_code', '').replace('US-', '')
+                        break
+                
+                suggestions.append({
+                    'place_name': place_name,
+                    'short_name': f"{text}, {region}" if region else text,
+                    'coordinates': feature.get('center', []),
+                })
+            
+            return suggestions
+    except Exception as e:
+        logger.error(f"Autocomplete error for '{query}': {e}")
+        return []
+
 # Include the router in the main app
 app.include_router(api_router)
 
