@@ -37,6 +37,12 @@ interface SavedRoute {
   created_at: string;
 }
 
+interface AutocompleteSuggestion {
+  place_name: string;
+  short_name: string;
+  coordinates: number[];
+}
+
 export default function HomeScreen() {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -47,6 +53,13 @@ export default function HomeScreen() {
   const [favoriteRoutes, setFavoriteRoutes] = useState<SavedRoute[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  
+  // Autocomplete state
+  const [originSuggestions, setOriginSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
+  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
+  const [autocompleteLoading, setAutocompleteLoading] = useState(false);
   
   // Departure time
   const [departureTime, setDepartureTime] = useState(new Date());
