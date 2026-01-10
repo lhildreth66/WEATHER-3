@@ -641,16 +641,73 @@ export default function HomeScreen() {
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={departureTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(event, date) => {
-                  if (date) setDepartureTime(date);
-                }}
-                textColor="#fff"
-                minimumDate={new Date()}
-              />
+              
+              {Platform.OS === 'web' ? (
+                // Web-compatible date/time input
+                <View style={styles.webDatePicker}>
+                  <Text style={styles.datePickerLabel}>Date</Text>
+                  <input
+                    type="date"
+                    value={departureTime.toISOString().split('T')[0]}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const newDate = new Date(departureTime);
+                      const [year, month, day] = e.target.value.split('-');
+                      newDate.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      setDepartureTime(newDate);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: 12,
+                      fontSize: 16,
+                      backgroundColor: '#3f3f46',
+                      border: '1px solid #52525b',
+                      borderRadius: 8,
+                      color: '#fff',
+                      marginBottom: 16,
+                    }}
+                  />
+                  
+                  <Text style={styles.datePickerLabel}>Time</Text>
+                  <input
+                    type="time"
+                    value={`${String(departureTime.getHours()).padStart(2, '0')}:${String(departureTime.getMinutes()).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const newDate = new Date(departureTime);
+                      const [hours, minutes] = e.target.value.split(':');
+                      newDate.setHours(parseInt(hours), parseInt(minutes));
+                      setDepartureTime(newDate);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: 12,
+                      fontSize: 16,
+                      backgroundColor: '#3f3f46',
+                      border: '1px solid #52525b',
+                      borderRadius: 8,
+                      color: '#fff',
+                      marginBottom: 16,
+                    }}
+                  />
+                  
+                  <Text style={styles.selectedDateTime}>
+                    Selected: {format(departureTime, 'MMM d, yyyy h:mm a')}
+                  </Text>
+                </View>
+              ) : (
+                // Native DateTimePicker for iOS/Android
+                <DateTimePicker
+                  value={departureTime}
+                  mode="datetime"
+                  display="spinner"
+                  onChange={(event, date) => {
+                    if (date) setDepartureTime(date);
+                  }}
+                  textColor="#fff"
+                  minimumDate={new Date()}
+                />
+              )}
+              
               <TouchableOpacity 
                 style={styles.modalButton}
                 onPress={() => setShowDatePicker(false)}
