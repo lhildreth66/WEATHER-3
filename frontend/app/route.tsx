@@ -558,10 +558,52 @@ export default function RouteScreen() {
             {routeData.safety_score ? ` • Safety: ${routeData.safety_score.overall_score}` : ''}
           </Text>
         </View>
+        <TouchableOpacity onPress={() => setShowRadarMap(true)} style={styles.radarBtn}>
+          <Ionicons name="radio-outline" size={22} color="#22c55e" />
+        </TouchableOpacity>
         <TouchableOpacity onPress={speakSummary} style={styles.speakBtn}>
           <Ionicons name={isSpeaking ? "stop-circle" : "volume-high"} size={24} color={isSpeaking ? "#ef4444" : "#60a5fa"} />
         </TouchableOpacity>
       </View>
+
+      {/* Radar Map Modal */}
+      {showRadarMap && (
+        <Modal transparent animationType="slide">
+          <View style={styles.radarModalOverlay}>
+            <View style={styles.radarModalContent}>
+              <View style={styles.radarHeader}>
+                <View style={styles.radarHeaderLeft}>
+                  <Ionicons name="radio-outline" size={24} color="#22c55e" />
+                  <Text style={styles.radarTitle}>Live Weather Radar</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowRadarMap(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              {Platform.OS === 'web' ? (
+                <iframe
+                  srcDoc={generateRadarMapHtml(
+                    routeData.waypoints[Math.floor(routeData.waypoints.length / 2)]?.waypoint.lat || 39.8283,
+                    routeData.waypoints[Math.floor(routeData.waypoints.length / 2)]?.waypoint.lon || -98.5795
+                  )}
+                  style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
+                />
+              ) : (
+                <WebView
+                  source={{ html: generateRadarMapHtml(
+                    routeData.waypoints[Math.floor(routeData.waypoints.length / 2)]?.waypoint.lat || 39.8283,
+                    routeData.waypoints[Math.floor(routeData.waypoints.length / 2)]?.waypoint.lon || -98.5795
+                  )}}
+                  style={styles.radarWebView}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Reroute Warning */}
       {routeData.reroute_recommended && (
