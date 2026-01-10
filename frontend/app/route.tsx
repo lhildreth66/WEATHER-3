@@ -681,17 +681,33 @@ export default function RouteScreen() {
                           </View>
                         )}
                       </View>
-                      <View style={styles.waypointMeta}>
-                        {wp.waypoint.distance_from_start !== null && wp.waypoint.distance_from_start > 0 && (
-                          <Text style={styles.waypointDistance}>
-                            {Math.round(wp.waypoint.distance_from_start)} mi
-                          </Text>
-                        )}
-                        {wp.waypoint.arrival_time && (
-                          <Text style={styles.waypointEta}>
-                            ETA {format(parseISO(wp.waypoint.arrival_time), 'h:mm a')}
-                          </Text>
-                        )}
+                      <View style={styles.waypointHeaderRight}>
+                        <View style={styles.waypointMeta}>
+                          {wp.waypoint.distance_from_start !== null && wp.waypoint.distance_from_start > 0 && (
+                            <Text style={styles.waypointDistance}>
+                              {Math.round(wp.waypoint.distance_from_start)} mi
+                            </Text>
+                          )}
+                          {wp.waypoint.arrival_time && (
+                            <Text style={styles.waypointEta}>
+                              ETA {format(parseISO(wp.waypoint.arrival_time), 'h:mm a')}
+                            </Text>
+                          )}
+                        </View>
+                        {/* Speaker Button for Individual Waypoint */}
+                        <TouchableOpacity 
+                          style={[
+                            styles.waypointSpeakerButton,
+                            speakingWaypointIndex === index && styles.waypointSpeakerButtonActive
+                          ]}
+                          onPress={() => speakWaypointWeather(wp, index)}
+                        >
+                          <Ionicons 
+                            name={speakingWaypointIndex === index ? "stop-circle" : "volume-medium-outline"} 
+                            size={18} 
+                            color={speakingWaypointIndex === index ? "#ef4444" : "#60a5fa"} 
+                          />
+                        </TouchableOpacity>
                       </View>
                     </View>
 
