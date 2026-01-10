@@ -622,6 +622,92 @@ export default function RouteScreen() {
           <Text style={styles.actionText}>{isSpeaking ? 'Stop' : 'Listen'}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* AI Chat Modal */}
+      {showChat && (
+        <Modal transparent animationType="slide">
+          <View style={styles.chatModalOverlay}>
+            <View style={styles.chatModalContent}>
+              <View style={styles.chatHeader}>
+                <View style={styles.chatHeaderLeft}>
+                  <Ionicons name="chatbubbles" size={24} color="#eab308" />
+                  <Text style={styles.chatTitle}>Ask Routecast AI</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowChat(false)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.chatMessages} showsVerticalScrollIndicator={false}>
+                {chatHistory.length === 0 && (
+                  <View style={styles.chatWelcome}>
+                    <Text style={styles.chatWelcomeText}>👋 Ask about your route!</Text>
+                    <Text style={styles.chatWelcomeSubtext}>I can help with road conditions, weather, and safe driving tips.</Text>
+                  </View>
+                )}
+                
+                {chatHistory.map((msg, idx) => (
+                  <View key={idx} style={[styles.chatBubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                    <Text style={styles.chatBubbleText}>{msg.text}</Text>
+                  </View>
+                ))}
+                
+                {chatLoading && (
+                  <View style={styles.chatTyping}>
+                    <ActivityIndicator size="small" color="#eab308" />
+                    <Text style={styles.chatTypingText}>Thinking...</Text>
+                  </View>
+                )}
+              </ScrollView>
+              
+              <View style={styles.chatSuggestions}>
+                {chatSuggestions.map((suggestion, idx) => (
+                  <TouchableOpacity 
+                    key={idx} 
+                    style={styles.chatSuggestionBtn}
+                    onPress={() => sendChatMessage(suggestion)}
+                  >
+                    <Text style={styles.chatSuggestionText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              {isListening && (
+                <View style={styles.listeningIndicator}>
+                  <Text style={styles.listeningText}>🎤 Listening...</Text>
+                </View>
+              )}
+              
+              <View style={styles.chatInputRow}>
+                <TouchableOpacity style={[styles.micBtn, isListening && styles.micBtnActive]} onPress={startVoiceRecognition}>
+                  <Ionicons name={isListening ? "radio-button-on" : "mic"} size={22} color={isListening ? "#ef4444" : "#fff"} />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Type or tap mic to speak..."
+                  placeholderTextColor="#6b7280"
+                  value={chatMessage}
+                  onChangeText={setChatMessage}
+                  onSubmitEditing={() => sendChatMessage()}
+                  returnKeyType="send"
+                />
+                <TouchableOpacity 
+                  style={[styles.chatSendBtn, !chatMessage.trim() && styles.chatSendBtnDisabled]}
+                  onPress={() => sendChatMessage()}
+                  disabled={!chatMessage.trim() || chatLoading}
+                >
+                  <Ionicons name="send" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Floating Chat Button */}
+      <TouchableOpacity style={styles.chatFab} onPress={() => setShowChat(true)}>
+        <Ionicons name="chatbubble-ellipses" size={24} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
