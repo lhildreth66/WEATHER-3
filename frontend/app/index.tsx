@@ -997,8 +997,10 @@ export default function HomeScreen() {
                 {/* Microphone button */}
                 <TouchableOpacity 
                   style={[styles.micBtn, isListening && styles.micBtnActive]}
-                  onPress={startVoiceRecognition}
-                  disabled={isListening}
+                  onPress={() => {
+                    console.log('Mic button pressed');
+                    startVoiceRecognition();
+                  }}
                 >
                   <Ionicons 
                     name={isListening ? "radio-button-on" : "mic"} 
