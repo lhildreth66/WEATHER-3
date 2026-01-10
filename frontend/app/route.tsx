@@ -134,6 +134,14 @@ export default function RouteScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'conditions' | 'directions' | 'alerts'>('conditions');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // AI Chat state
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', text: string}[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSuggestions, setChatSuggestions] = useState<string[]>(['Road condition tips', 'Safe driving advice', 'Weather questions']);
+  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     if (params.routeData) {
@@ -146,6 +154,86 @@ export default function RouteScreen() {
     }
     setLoading(false);
   }, [params.routeData]);
+
+  // AI Chat functions
+  const sendChatMessage = async (message?: string) => {
+    const msgToSend = message || chatMessage;
+    if (!msgToSend.trim()) return;
+    
+    setChatLoading(true);
+    setChatHistory(prev => [...prev, { role: 'user', text: msgToSend }]);
+    setChatMessage('');
+    
+    try {
+      const routeContext = routeData ? `${routeData.origin} to ${routeData.destination}, ${routeData.road_condition_summary}` : null;
+      const response = await axios.post(`${API_BASE}/api/chat`, {
+        message: msgToSend,
+        route_context: routeContext
+      });
+      
+      setChatHistory(prev => [...prev, { role: 'ai', text: response.data.response }]);
+      if (response.data.suggestions) {
+        setChatSuggestions(response.data.suggestions);
+      }
+    } catch (err) {
+      setChatHistory(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't process that. Please try again." }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Voice recognition
+  const startVoiceRecognition = () => {
+    if (Platform.OS !== 'web') {
+      alert('Voice input works in web browsers.');
+      return;
+    }
+
+    const isInIframe = window !== window.parent;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert('Speech recognition not supported. Try Chrome or Edge.');
+      return;
+    }
+
+    if (isInIframe) {
+      alert('🎤 Voice input blocked in preview.\n\nDeploy the app or open in new tab to use voice.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setChatMessage('');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setChatMessage(transcript);
+      };
+
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
+
+      recognition.start();
+    } catch (err) {
+      alert('Failed to start voice recognition.');
+      setIsListening(false);
+    }
+  };
 
   const speakSummary = async () => {
     if (!routeData) return;
