@@ -131,12 +131,197 @@ const getManeuverIcon = (maneuver: string): string => {
   return icons[maneuver] || 'arrow-forward';
 };
 
+// Generate radar map HTML using RainViewer API (free weather radar)
+const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body, #map { width: 100%; height: 100%; background: #1a1a1a; }
+        .legend {
+          position: absolute;
+          bottom: 60px;
+          left: 10px;
+          background: rgba(24,24,27,0.95);
+          padding: 10px 12px;
+          border-radius: 10px;
+          z-index: 1000;
+          font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .legend-title {
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 4px;
+        }
+        .legend-color {
+          width: 20px;
+          height: 12px;
+          border-radius: 3px;
+        }
+        .legend-label {
+          color: #a1a1aa;
+          font-size: 10px;
+        }
+        .time-display {
+          position: absolute;
+          bottom: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(24,24,27,0.95);
+          padding: 8px 16px;
+          border-radius: 20px;
+          color: #eab308;
+          font-size: 12px;
+          font-weight: 600;
+          z-index: 1000;
+          font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .controls {
+          position: absolute;
+          bottom: 10px;
+          right: 10px;
+          display: flex;
+          gap: 8px;
+          z-index: 1000;
+        }
+        .control-btn {
+          background: rgba(24,24,27,0.95);
+          border: none;
+          color: #fff;
+          width: 36px;
+          height: 36px;
+          border-radius: 18px;
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .control-btn:active { background: #3f3f46; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <div class="legend">
+        <div class="legend-title">RADAR</div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #00ff00;"></div>
+          <span class="legend-label">Light Rain</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ffff00;"></div>
+          <span class="legend-label">Moderate</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff8800;"></div>
+          <span class="legend-label">Heavy</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff0000;"></div>
+          <span class="legend-label">Intense</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff00ff;"></div>
+          <span class="legend-label">Extreme</span>
+        </div>
+      </div>
+      <div class="time-display" id="timeDisplay">Loading radar...</div>
+      <div class="controls">
+        <button class="control-btn" id="playBtn">▶</button>
+      </div>
+      <script>
+        var map = L.map('map', { 
+          zoomControl: false,
+          attributionControl: false
+        }).setView([${centerLat}, ${centerLon}], 7);
+        
+        // Dark base map
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19
+        }).addTo(map);
+        
+        // RainViewer radar layer
+        var radarLayer = null;
+        var radarFrames = [];
+        var currentFrame = 0;
+        var isPlaying = false;
+        var playInterval = null;
+        
+        // Fetch available radar timestamps from RainViewer
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+          .then(response => response.json())
+          .then(data => {
+            radarFrames = data.radar.past.concat(data.radar.nowcast || []);
+            if (radarFrames.length > 0) {
+              currentFrame = radarFrames.length - 1; // Start with most recent
+              showRadarFrame(currentFrame);
+            }
+          })
+          .catch(err => {
+            document.getElementById('timeDisplay').textContent = 'Radar unavailable';
+          });
+        
+        function showRadarFrame(index) {
+          if (index < 0 || index >= radarFrames.length) return;
+          
+          var frame = radarFrames[index];
+          var timestamp = new Date(frame.time * 1000);
+          var timeStr = timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          
+          document.getElementById('timeDisplay').textContent = 'Radar: ' + timeStr;
+          
+          if (radarLayer) {
+            map.removeLayer(radarLayer);
+          }
+          
+          radarLayer = L.tileLayer(
+            'https://tilecache.rainviewer.com' + frame.path + '/256/{z}/{x}/{y}/4/1_1.png',
+            {
+              opacity: 0.7,
+              zIndex: 100
+            }
+          ).addTo(map);
+        }
+        
+        // Play/pause animation
+        document.getElementById('playBtn').onclick = function() {
+          if (isPlaying) {
+            clearInterval(playInterval);
+            isPlaying = false;
+            this.textContent = '▶';
+          } else {
+            isPlaying = true;
+            this.textContent = '⏸';
+            playInterval = setInterval(function() {
+              currentFrame = (currentFrame + 1) % radarFrames.length;
+              showRadarFrame(currentFrame);
+            }, 500);
+          }
+        };
+      </script>
+    </body>
+    </html>
+  `;
+};
+
 export default function RouteScreen() {
   const params = useLocalSearchParams();
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'conditions' | 'directions' | 'alerts'>('conditions');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // Radar map state
+  const [showRadarMap, setShowRadarMap] = useState(false);
   
   // AI Chat state
   const [showChat, setShowChat] = useState(false);
