@@ -718,6 +718,55 @@ export default function HomeScreen() {
           </View>
         </Modal>
       )}
+
+      {/* Vehicle Type Selector Modal */}
+      {showVehicleSelector && (
+        <Modal transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Vehicle Type</Text>
+                <TouchableOpacity onPress={() => setShowVehicleSelector(false)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.vehicleModalSubtext}>
+                Safety scores are customized for your vehicle
+              </Text>
+              
+              <View style={styles.vehicleList}>
+                {VEHICLE_TYPES.map((vehicle) => (
+                  <TouchableOpacity
+                    key={vehicle.id}
+                    style={[
+                      styles.vehicleOption,
+                      vehicleType === vehicle.id && styles.vehicleOptionActive,
+                    ]}
+                    onPress={() => {
+                      setVehicleType(vehicle.id);
+                      setShowVehicleSelector(false);
+                    }}
+                  >
+                    <Ionicons 
+                      name={vehicle.icon as any} 
+                      size={24} 
+                      color={vehicleType === vehicle.id ? '#eab308' : '#6b7280'} 
+                    />
+                    <Text style={[
+                      styles.vehicleOptionText,
+                      vehicleType === vehicle.id && styles.vehicleOptionTextActive
+                    ]}>{vehicle.label}</Text>
+                    {vehicleType === vehicle.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#eab308" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
