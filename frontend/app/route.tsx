@@ -1063,6 +1063,19 @@ const styles = StyleSheet.create({
   waypointMeta: {
     alignItems: 'flex-end',
   },
+  waypointHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  waypointSpeakerButton: {
+    padding: 8,
+    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+    borderRadius: 8,
+  },
+  waypointSpeakerButtonActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
   waypointDistance: {
     color: '#a1a1aa',
     fontSize: 11,
