@@ -1207,12 +1207,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tab: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: '#27272a',
     borderRadius: 8,
   },
