@@ -660,29 +660,50 @@ export default function RouteScreen() {
           </View>
 
           {/* Tabs */}
-          <View style={styles.tabs}>
-            <TouchableOpacity 
-              style={[styles.tab, activeTab === 'weather' && styles.tabActive]}
-              onPress={() => setActiveTab('weather')}
-            >
-              <Ionicons name="cloud" size={16} color={activeTab === 'weather' ? '#eab308' : '#6b7280'} />
-              <Text style={[styles.tabText, activeTab === 'weather' && styles.tabTextActive]}>Weather</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.tab, activeTab === 'timeline' && styles.tabActive]}
-              onPress={() => setActiveTab('timeline')}
-            >
-              <Ionicons name="time" size={16} color={activeTab === 'timeline' ? '#eab308' : '#6b7280'} />
-              <Text style={[styles.tabText, activeTab === 'timeline' && styles.tabTextActive]}>Timeline</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.tab, activeTab === 'packing' && styles.tabActive]}
-              onPress={() => setActiveTab('packing')}
-            >
-              <Ionicons name="bag" size={16} color={activeTab === 'packing' ? '#eab308' : '#6b7280'} />
-              <Text style={[styles.tabText, activeTab === 'packing' && styles.tabTextActive]}>Packing</Text>
-            </TouchableOpacity>
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll}>
+            <View style={styles.tabs}>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'weather' && styles.tabActive]}
+                onPress={() => setActiveTab('weather')}
+              >
+                <Ionicons name="cloud" size={16} color={activeTab === 'weather' ? '#eab308' : '#6b7280'} />
+                <Text style={[styles.tabText, activeTab === 'weather' && styles.tabTextActive]}>Weather</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'alerts' && styles.tabActive]}
+                onPress={() => setActiveTab('alerts')}
+              >
+                <Ionicons name="warning" size={16} color={activeTab === 'alerts' ? '#ef4444' : '#6b7280'} />
+                <Text style={[styles.tabText, activeTab === 'alerts' && styles.tabTextActive]}>Alerts</Text>
+                {routeData.hazard_alerts && routeData.hazard_alerts.length > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{routeData.hazard_alerts.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'stops' && styles.tabActive]}
+                onPress={() => setActiveTab('stops')}
+              >
+                <Ionicons name="cafe" size={16} color={activeTab === 'stops' ? '#eab308' : '#6b7280'} />
+                <Text style={[styles.tabText, activeTab === 'stops' && styles.tabTextActive]}>Stops</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'timeline' && styles.tabActive]}
+                onPress={() => setActiveTab('timeline')}
+              >
+                <Ionicons name="time" size={16} color={activeTab === 'timeline' ? '#eab308' : '#6b7280'} />
+                <Text style={[styles.tabText, activeTab === 'timeline' && styles.tabTextActive]}>Timeline</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'packing' && styles.tabActive]}
+                onPress={() => setActiveTab('packing')}
+              >
+                <Ionicons name="bag" size={16} color={activeTab === 'packing' ? '#eab308' : '#6b7280'} />
+                <Text style={[styles.tabText, activeTab === 'packing' && styles.tabTextActive]}>Pack</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
 
           <ScrollView 
             style={styles.weatherScroll}
@@ -690,6 +711,78 @@ export default function RouteScreen() {
           >
             {activeTab === 'weather' && (
               <>
+                {/* Safety Score Card */}
+                {routeData.safety_score && (
+                  <View style={styles.safetyScoreCard}>
+                    <View style={styles.safetyScoreHeader}>
+                      <View style={styles.safetyScoreCircle}>
+                        <Text style={[
+                          styles.safetyScoreNumber,
+                          routeData.safety_score.overall_score >= 80 ? styles.safetyGood :
+                          routeData.safety_score.overall_score >= 60 ? styles.safetyModerate :
+                          styles.safetyBad
+                        ]}>
+                          {routeData.safety_score.overall_score}
+                        </Text>
+                      </View>
+                      <View style={styles.safetyScoreInfo}>
+                        <Text style={styles.safetyScoreTitle}>Trip Safety Score</Text>
+                        <Text style={styles.safetyScoreVehicle}>{routeData.safety_score.vehicle_type}</Text>
+                        <View style={[
+                          styles.safetyScoreBadge,
+                          routeData.safety_score.risk_level === 'low' ? styles.riskLow :
+                          routeData.safety_score.risk_level === 'moderate' ? styles.riskModerate :
+                          routeData.safety_score.risk_level === 'high' ? styles.riskHigh :
+                          styles.riskExtreme
+                        ]}>
+                          <Text style={styles.safetyScoreBadgeText}>
+                            {routeData.safety_score.risk_level.toUpperCase()} RISK
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {routeData.safety_score.recommendations.length > 0 && (
+                      <View style={styles.safetyRecommendations}>
+                        {routeData.safety_score.recommendations.slice(0, 2).map((rec, idx) => (
+                          <View key={idx} style={styles.safetyRecItem}>
+                            <Ionicons name="information-circle" size={14} color="#60a5fa" />
+                            <Text style={styles.safetyRecText}>{rec}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Optimal Departure */}
+                {routeData.optimal_departure && (
+                  <View style={styles.departureCard}>
+                    <View style={styles.departureHeader}>
+                      <Ionicons name="time-outline" size={18} color="#22c55e" />
+                      <Text style={styles.departureTitle}>Departure Window</Text>
+                    </View>
+                    <Text style={styles.departureRecommendation}>
+                      {routeData.optimal_departure.recommendation}
+                    </Text>
+                    <Text style={styles.departureConditions}>
+                      {routeData.optimal_departure.conditions_summary}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Trucker Warnings */}
+                {routeData.trucker_warnings && routeData.trucker_warnings.length > 0 && (
+                  <View style={styles.truckerWarningsCard}>
+                    <View style={styles.truckerWarningsHeader}>
+                      <Ionicons name="bus" size={18} color="#f59e0b" />
+                      <Text style={styles.truckerWarningsTitle}>Trucker Alerts</Text>
+                    </View>
+                    {routeData.trucker_warnings.map((warning, idx) => (
+                      <Text key={idx} style={styles.truckerWarningItem}>{warning}</Text>
+                    ))}
+                  </View>
+                )}
+
                 {/* Weather Summary Card */}
                 <View style={styles.summaryCard}>
                   <View style={styles.summaryHeader}>
