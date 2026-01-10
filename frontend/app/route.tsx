@@ -1497,4 +1497,334 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
   },
+  tabsScroll: {
+    maxHeight: 50,
+  },
+  tabBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  tabBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  safetyScoreCard: {
+    backgroundColor: '#27272a',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  safetyScoreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  safetyScoreCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3f3f46',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#52525b',
+  },
+  safetyScoreNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  safetyGood: {
+    color: '#22c55e',
+  },
+  safetyModerate: {
+    color: '#eab308',
+  },
+  safetyBad: {
+    color: '#ef4444',
+  },
+  safetyScoreInfo: {
+    flex: 1,
+  },
+  safetyScoreTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  safetyScoreVehicle: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  safetyScoreBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  safetyScoreBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  riskLow: {
+    backgroundColor: '#166534',
+  },
+  riskModerate: {
+    backgroundColor: '#854d0e',
+  },
+  riskHigh: {
+    backgroundColor: '#b91c1c',
+  },
+  riskExtreme: {
+    backgroundColor: '#7f1d1d',
+  },
+  safetyRecommendations: {
+    marginTop: 12,
+    gap: 6,
+  },
+  safetyRecItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  safetyRecText: {
+    color: '#e4e4e7',
+    fontSize: 12,
+    flex: 1,
+  },
+  departureCard: {
+    backgroundColor: '#27272a',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  departureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  departureTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  departureRecommendation: {
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  departureConditions: {
+    color: '#a1a1aa',
+    fontSize: 12,
+  },
+  truckerWarningsCard: {
+    backgroundColor: '#422006',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  truckerWarningsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  truckerWarningsTitle: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  truckerWarningItem: {
+    color: '#fde68a',
+    fontSize: 12,
+    marginBottom: 6,
+    paddingLeft: 4,
+  },
+  alertsContainer: {
+    backgroundColor: '#27272a',
+    borderRadius: 12,
+    padding: 14,
+  },
+  alertsTabTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  alertsTabSubtitle: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginBottom: 14,
+  },
+  hazardCard: {
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  hazardExtreme: {
+    backgroundColor: '#7f1d1d',
+  },
+  hazardHigh: {
+    backgroundColor: '#991b1b',
+  },
+  hazardMedium: {
+    backgroundColor: '#78350f',
+  },
+  hazardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  hazardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hazardInfo: {
+    flex: 1,
+  },
+  hazardCountdown: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  hazardMessage: {
+    color: '#fecaca',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  hazardRecommendation: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    padding: 8,
+    borderRadius: 6,
+  },
+  hazardRecText: {
+    color: '#bbf7d0',
+    fontSize: 12,
+    flex: 1,
+  },
+  hazardMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  hazardDistance: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+  },
+  hazardEta: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+  },
+  noAlertsBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noAlertsTitle: {
+    color: '#22c55e',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  noAlertsText: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  stopsContainer: {
+    backgroundColor: '#27272a',
+    borderRadius: 12,
+    padding: 14,
+  },
+  stopsTabTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  stopsTabSubtitle: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginBottom: 14,
+  },
+  restStopCard: {
+    backgroundColor: '#3f3f46',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  restStopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  restStopInfo: {
+    flex: 1,
+  },
+  restStopName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  restStopDistance: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  restStopWeather: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#52525b',
+  },
+  restStopWeatherInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  restStopTemp: {
+    color: '#eab308',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  restStopConditions: {
+    color: '#e4e4e7',
+    fontSize: 13,
+  },
+  restStopRec: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  restStopRecText: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    flex: 1,
+  },
+  noStopsBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noStopsText: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginTop: 12,
+  },
 });
