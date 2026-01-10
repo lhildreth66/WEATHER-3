@@ -81,15 +81,8 @@
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": ""
       }
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/your-project-id-here"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
     }
   }
 }
