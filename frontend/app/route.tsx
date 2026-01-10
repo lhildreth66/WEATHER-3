@@ -271,6 +271,7 @@ export default function RouteScreen() {
   const [showAlertMarkers, setShowAlertMarkers] = useState(true);
   const [activeTab, setActiveTab] = useState<'weather' | 'timeline' | 'packing'>('weather');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingWaypointIndex, setSpeakingWaypointIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (params.routeData) {
