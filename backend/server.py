@@ -405,6 +405,11 @@ async def get_mapbox_route(origin_coords: Dict, dest_coords: Dict, waypoints: Li
             response.raise_for_status()
             data = response.json()
             
+            # Check for "no route" response
+            if data.get('code') == 'NoRoute':
+                logger.warning(f"No drivable route found between coordinates")
+                return None
+            
             if data.get('routes') and len(data['routes']) > 0:
                 route = data['routes'][0]
                 return {
@@ -412,6 +417,8 @@ async def get_mapbox_route(origin_coords: Dict, dest_coords: Dict, waypoints: Li
                     'duration': route.get('duration', 0) / 60,  # Convert to minutes
                     'distance': route.get('distance', 0) / 1609.34  # Convert to miles
                 }
+            else:
+                logger.warning(f"No routes in Mapbox response: {data.get('code', 'unknown')}")
     except Exception as e:
         logger.error(f"Mapbox route error: {e}")
     return None
