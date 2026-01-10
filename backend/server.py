@@ -35,8 +35,9 @@ openai_client = AsyncOpenAI(
 )
 
 # NOAA API Headers
+NOAA_USER_AGENT = os.environ.get('NOAA_USER_AGENT', 'Routecast/1.0 (contact@routecast.app)')
 NOAA_HEADERS = {
-    'User-Agent': 'HawkeyeDevWeather/1.0 (lisaannehildreth@gmail.com)',
+    'User-Agent': NOAA_USER_AGENT,
     'Accept': 'application/geo+json'
 }
 
