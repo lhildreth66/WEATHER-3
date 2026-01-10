@@ -1043,4 +1043,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  suggestionsDropdown: {
+    backgroundColor: '#3f3f46',
+    borderRadius: 10,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#52525b',
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#52525b',
+    gap: 10,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionShortName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  suggestionFullName: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    marginTop: 2,
+  },
 });
