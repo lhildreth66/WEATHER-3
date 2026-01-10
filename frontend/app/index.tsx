@@ -1172,4 +1172,71 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  vehicleSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#3f3f46',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  vehicleSelectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vehicleLabel: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  vehicleValue: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  truckerToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  truckerSubtext: {
+    color: '#6b7280',
+    fontSize: 11,
+  },
+  vehicleModalSubtext: {
+    color: '#a1a1aa',
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  vehicleList: {
+    gap: 8,
+  },
+  vehicleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3f3f46',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  vehicleOptionActive: {
+    backgroundColor: '#52525b',
+    borderWidth: 1,
+    borderColor: '#eab308',
+  },
+  vehicleOptionText: {
+    color: '#e4e4e7',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  vehicleOptionTextActive: {
+    color: '#eab308',
+  },
 });
