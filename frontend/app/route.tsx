@@ -300,21 +300,29 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         </div>
       </div>
       <script>
-        // US-centered map with free zoom/pan (no bounce-back)
+        // US-only bounds - strict containment
+        var usBounds = L.latLngBounds(
+          L.latLng(24.5, -125),  // Southwest (includes Florida Keys, Southern Texas)
+          L.latLng(49.5, -66)    // Northeast (includes Maine, Washington State)
+        );
+        
         var map = L.map('map', { 
-          zoomControl: true,
+          zoomControl: false,
           attributionControl: false,
-          minZoom: 3,
+          maxBounds: usBounds,
+          maxBoundsViscosity: 0.9,
+          minZoom: 4,
           maxZoom: 12,
-          zoomSnap: 0.5,
-          zoomDelta: 0.5,
-          wheelPxPerZoomLevel: 120
-        }).setView([${usLat}, ${usLon}], 6);
+          bounceAtZoomLimits: false
+        }).setView([39, -98], 4);  // Center of US
         
-        // Position zoom control
-        map.zoomControl.setPosition('topleft');
+        // Fit to US bounds on load
+        map.fitBounds(usBounds);
         
-        // Dark base map - US focused
+        // Prevent zooming out beyond US view
+        map.setMinZoom(4);
+        
+        // Dark base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           maxZoom: 19,
           attribution: ''
