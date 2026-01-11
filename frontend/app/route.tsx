@@ -133,6 +133,10 @@ const getManeuverIcon = (maneuver: string): string => {
 
 // Generate radar map HTML using RainViewer API (free weather radar)
 const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+  // Constrain to US bounds
+  const usLat = Math.max(24, Math.min(49, centerLat)); // US latitude range
+  const usLon = Math.max(-125, Math.min(-66, centerLon)); // US longitude range
+  
   return `
     <!DOCTYPE html>
     <html>
@@ -158,6 +162,14 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           font-size: 11px;
           font-weight: 700;
           margin-bottom: 8px;
+        }
+        .legend-section {
+          color: #6b7280;
+          font-size: 9px;
+          font-weight: 600;
+          margin-top: 8px;
+          margin-bottom: 4px;
+          text-transform: uppercase;
         }
         .legend-item {
           display: flex;
@@ -212,26 +224,49 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
     <body>
       <div id="map"></div>
       <div class="legend">
-        <div class="legend-title">RADAR</div>
+        <div class="legend-title">US WEATHER RADAR</div>
+        <div class="legend-section">🌧️ Rain</div>
         <div class="legend-item">
           <div class="legend-color" style="background: #00ff00;"></div>
           <span class="legend-label">Light Rain</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #ffff00;"></div>
-          <span class="legend-label">Moderate</span>
+          <span class="legend-label">Moderate Rain</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #ff8800;"></div>
-          <span class="legend-label">Heavy</span>
+          <span class="legend-label">Heavy Rain</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #ff0000;"></div>
-          <span class="legend-label">Intense</span>
+          <span class="legend-label">Intense Rain</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #ff00ff;"></div>
           <span class="legend-label">Extreme</span>
+        </div>
+        <div class="legend-section">❄️ Winter</div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #91d3ff;"></div>
+          <span class="legend-label">Light Snow</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #5eb2f7;"></div>
+          <span class="legend-label">Moderate Snow</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #2090e8;"></div>
+          <span class="legend-label">Heavy Snow</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ffffff;"></div>
+          <span class="legend-label">Ice/Sleet</span>
+        </div>
+        <div class="legend-section">🌀 Mixed</div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: linear-gradient(90deg, #91d3ff 50%, #ffaaff 50%);"></div>
+          <span class="legend-label">Rain/Snow Mix</span>
         </div>
       </div>
       <div class="time-display" id="timeDisplay">Loading radar...</div>
@@ -239,10 +274,19 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         <button class="control-btn" id="playBtn">▶</button>
       </div>
       <script>
+        // Constrain map to continental US
+        var southWest = L.latLng(24, -125);
+        var northEast = L.latLng(49, -66);
+        var usBounds = L.latLngBounds(southWest, northEast);
+        
         var map = L.map('map', { 
           zoomControl: false,
-          attributionControl: false
-        }).setView([${centerLat}, ${centerLon}], 7);
+          attributionControl: false,
+          maxBounds: usBounds,
+          maxBoundsViscosity: 1.0,
+          minZoom: 4,
+          maxZoom: 10
+        }).setView([${usLat}, ${usLon}], 6);
         
         // Dark base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
