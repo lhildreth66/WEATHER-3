@@ -133,9 +133,9 @@ const getManeuverIcon = (maneuver: string): string => {
 
 // Generate radar map HTML using RainViewer API (free weather radar)
 const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
-  // Constrain to US bounds
-  const usLat = Math.max(24, Math.min(49, centerLat)); // US latitude range
-  const usLon = Math.max(-125, Math.min(-66, centerLon)); // US longitude range
+  // Constrain to continental US bounds only
+  const usLat = Math.max(25, Math.min(48, centerLat));
+  const usLon = Math.max(-124, Math.min(-68, centerLon));
   
   return `
     <!DOCTYPE html>
@@ -146,151 +146,152 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body, #map { width: 100%; height: 100%; background: #1a1a1a; }
-        .legend {
-          position: absolute;
-          bottom: 60px;
-          left: 10px;
-          background: rgba(24,24,27,0.95);
-          padding: 10px 12px;
-          border-radius: 10px;
+        html, body { width: 100%; height: 100%; background: #1a1a1a; }
+        #map { width: 100%; height: calc(100% - 70px); }
+        .legend-bar {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 70px;
+          background: rgba(24,24,27,0.98);
           z-index: 1000;
           font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+          display: flex;
+          flex-direction: column;
+          padding: 6px 10px;
+          border-top: 1px solid #3f3f46;
         }
-        .legend-title {
-          color: #fff;
-          font-size: 11px;
-          font-weight: 700;
-          margin-bottom: 8px;
+        .legend-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 4px;
         }
         .legend-section {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+        .legend-section-title {
           color: #6b7280;
-          font-size: 9px;
-          font-weight: 600;
-          margin-top: 8px;
-          margin-bottom: 4px;
-          text-transform: uppercase;
+          font-size: 8px;
+          font-weight: 700;
+          margin-right: 4px;
         }
         .legend-item {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 4px;
+          gap: 2px;
         }
         .legend-color {
-          width: 20px;
-          height: 12px;
-          border-radius: 3px;
+          width: 14px;
+          height: 10px;
+          border-radius: 2px;
         }
         .legend-label {
-          color: #a1a1aa;
-          font-size: 10px;
+          color: #9ca3af;
+          font-size: 8px;
+        }
+        .controls-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-top: 4px;
         }
         .time-display {
-          position: absolute;
-          bottom: 10px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(24,24,27,0.95);
-          padding: 8px 16px;
-          border-radius: 20px;
           color: #eab308;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-          z-index: 1000;
-          font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-        .controls {
-          position: absolute;
-          bottom: 10px;
-          right: 10px;
-          display: flex;
-          gap: 8px;
-          z-index: 1000;
         }
         .control-btn {
-          background: rgba(24,24,27,0.95);
+          background: #3f3f46;
           border: none;
           color: #fff;
-          width: 36px;
-          height: 36px;
-          border-radius: 18px;
-          font-size: 16px;
+          width: 28px;
+          height: 28px;
+          border-radius: 14px;
+          font-size: 12px;
           cursor: pointer;
         }
-        .control-btn:active { background: #3f3f46; }
+        .control-btn:active { background: #52525b; }
       </style>
     </head>
     <body>
       <div id="map"></div>
-      <div class="legend">
-        <div class="legend-title">US WEATHER RADAR</div>
-        <div class="legend-section">🌧️ Rain</div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #00ff00;"></div>
-          <span class="legend-label">Light Rain</span>
+      <div class="legend-bar">
+        <div class="legend-row">
+          <div class="legend-section">
+            <span class="legend-section-title">RAIN</span>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #00ff00;"></div>
+              <span class="legend-label">Light</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ffff00;"></div>
+              <span class="legend-label">Mod</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ff8800;"></div>
+              <span class="legend-label">Heavy</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ff0000;"></div>
+              <span class="legend-label">Intense</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ff00ff;"></div>
+              <span class="legend-label">Extreme</span>
+            </div>
+          </div>
+          <div class="legend-section">
+            <span class="legend-section-title">SNOW</span>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #91d3ff;"></div>
+              <span class="legend-label">Light</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #5eb2f7;"></div>
+              <span class="legend-label">Mod</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #2090e8;"></div>
+              <span class="legend-label">Heavy</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ffffff; border: 1px solid #666;"></div>
+              <span class="legend-label">Ice</span>
+            </div>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #ffff00;"></div>
-          <span class="legend-label">Moderate Rain</span>
+        <div class="controls-row">
+          <button class="control-btn" id="playBtn">▶</button>
+          <span class="time-display" id="timeDisplay">Loading...</span>
         </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #ff8800;"></div>
-          <span class="legend-label">Heavy Rain</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #ff0000;"></div>
-          <span class="legend-label">Intense Rain</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #ff00ff;"></div>
-          <span class="legend-label">Extreme</span>
-        </div>
-        <div class="legend-section">❄️ Winter</div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #91d3ff;"></div>
-          <span class="legend-label">Light Snow</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #5eb2f7;"></div>
-          <span class="legend-label">Moderate Snow</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #2090e8;"></div>
-          <span class="legend-label">Heavy Snow</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #ffffff;"></div>
-          <span class="legend-label">Ice/Sleet</span>
-        </div>
-        <div class="legend-section">🌀 Mixed</div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: linear-gradient(90deg, #91d3ff 50%, #ffaaff 50%);"></div>
-          <span class="legend-label">Rain/Snow Mix</span>
-        </div>
-      </div>
-      <div class="time-display" id="timeDisplay">Loading radar...</div>
-      <div class="controls">
-        <button class="control-btn" id="playBtn">▶</button>
       </div>
       <script>
-        // Constrain map to continental US
-        var southWest = L.latLng(24, -125);
-        var northEast = L.latLng(49, -66);
+        // Strict continental US bounds only
+        var southWest = L.latLng(25, -124);
+        var northEast = L.latLng(48, -68);
         var usBounds = L.latLngBounds(southWest, northEast);
         
         var map = L.map('map', { 
           zoomControl: false,
           attributionControl: false,
-          maxBounds: usBounds,
+          maxBounds: usBounds.pad(0.05),
           maxBoundsViscosity: 1.0,
           minZoom: 4,
           maxZoom: 10
-        }).setView([${usLat}, ${usLon}], 6);
+        }).setView([${usLat}, ${usLon}], 5);
+        
+        // Fit to US bounds initially
+        map.fitBounds(usBounds);
         
         // Dark base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19
+          maxZoom: 19,
+          bounds: usBounds
         }).addTo(map);
         
         // RainViewer radar layer
