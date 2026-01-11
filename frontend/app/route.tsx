@@ -559,7 +559,8 @@ export default function RouteScreen() {
           </Text>
         </View>
         <TouchableOpacity onPress={() => setShowRadarMap(true)} style={styles.radarBtn}>
-          <Ionicons name="radio-outline" size={22} color="#22c55e" />
+          <Ionicons name="radio-outline" size={18} color="#22c55e" />
+          <Text style={styles.radarBtnText}>Radar</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={speakSummary} style={styles.speakBtn}>
           <Ionicons name={isSpeaking ? "stop-circle" : "volume-high"} size={24} color={isSpeaking ? "#ef4444" : "#60a5fa"} />
