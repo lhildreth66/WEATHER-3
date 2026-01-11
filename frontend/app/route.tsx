@@ -300,24 +300,24 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         </div>
       </div>
       <script>
-        // US-only bounds - strict containment  
+        // US-only bounds - very strict, no other countries visible
         var usBounds = L.latLngBounds(
-          L.latLng(25, -124),  // Southwest
-          L.latLng(49, -67)    // Northeast
+          L.latLng(26, -122),  // Southwest - cuts off Mexico
+          L.latLng(48, -68)    // Northeast
         );
         
         var map = L.map('map', { 
           zoomControl: false,
           attributionControl: false,
-          maxBounds: usBounds.pad(0.1),
+          maxBounds: usBounds,
           maxBoundsViscosity: 1.0,
           minZoom: 5,
           maxZoom: 12,
           bounceAtZoomLimits: true
         });
         
-        // Fit exactly to US bounds - no extra space
-        map.fitBounds(usBounds, { padding: [0, 0] });
+        // Fit exactly to US bounds
+        map.fitBounds(usBounds, { padding: [10, 10] });
         
         // Dark base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -325,9 +325,16 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           attribution: ''
         }).addTo(map);
         
-        // Prevent dragging outside US
+        // Keep map within US bounds when dragging
         map.on('drag', function() {
           map.panInsideBounds(usBounds, { animate: false });
+        });
+        
+        // Prevent zooming out too far
+        map.on('zoomend', function() {
+          if (map.getZoom() < 5) {
+            map.setZoom(5);
+          }
         });
         
         // RainViewer radar layer
