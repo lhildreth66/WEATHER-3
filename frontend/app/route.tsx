@@ -868,28 +868,66 @@ export default function RouteScreen() {
               
               const mileMarker = Math.round(wp.waypoint.distance_from_start || 0);
               const locationName = wp.waypoint.name || 'Unknown';
+              const isExpanded = expandedCards.has(index);
+              const alertDetails = wp.alerts && wp.alerts.length > 0 ? wp.alerts[0] : null;
               
               return (
-                <View key={index} style={styles.conditionCard}>
-                  <View style={styles.mileMarkerBox}>
-                    <Text style={styles.mileMarkerLabel}>MILE</Text>
-                    <Text style={styles.mileMarkerNumber}>{mileMarker}</Text>
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.conditionCard, isExpanded && styles.conditionCardExpanded]}
+                  onPress={() => hasAlert || alertDetails ? toggleCardExpand(index) : null}
+                  activeOpacity={hasAlert ? 0.7 : 1}
+                >
+                  <View style={styles.conditionCardMain}>
+                    <View style={styles.mileMarkerBox}>
+                      <Text style={styles.mileMarkerLabel}>MILE</Text>
+                      <Text style={styles.mileMarkerNumber}>{mileMarker}</Text>
+                    </View>
+                    <View style={[styles.conditionBadge, { backgroundColor: condColor }]}>
+                      <Text style={styles.conditionIcon}>{condIcon}</Text>
+                      <Text style={styles.conditionLabel}>{condLabel}</Text>
+                    </View>
+                    <View style={styles.conditionInfo}>
+                      <Text style={styles.conditionLocation} numberOfLines={1}>
+                        {locationName}
+                      </Text>
+                      <Text style={styles.conditionDesc}>{condDesc}</Text>
+                      <Text style={styles.roadSurface}>{roadSurface}</Text>
+                      <Text style={styles.conditionWeather}>
+                        {wp.weather?.temperature}°F • {wp.weather?.conditions || 'Clear'}
+                      </Text>
+                    </View>
+                    {(hasAlert || alertDetails) && (
+                      <View style={styles.expandIndicator}>
+                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#6b7280" />
+                      </View>
+                    )}
                   </View>
-                  <View style={[styles.conditionBadge, { backgroundColor: condColor }]}>
-                    <Text style={styles.conditionIcon}>{condIcon}</Text>
-                    <Text style={styles.conditionLabel}>{condLabel}</Text>
-                  </View>
-                  <View style={styles.conditionInfo}>
-                    <Text style={styles.conditionLocation} numberOfLines={1}>
-                      {locationName}
-                    </Text>
-                    <Text style={styles.conditionDesc}>{condDesc}</Text>
-                    <Text style={styles.roadSurface}>{roadSurface}</Text>
-                    <Text style={styles.conditionWeather}>
-                      {wp.weather?.temperature}°F • {wp.weather?.conditions || 'Clear'}
-                    </Text>
-                  </View>
-                </View>
+                  
+                  {/* Expanded Alert Details */}
+                  {isExpanded && alertDetails && (
+                    <View style={styles.alertDetailBox}>
+                      <View style={styles.alertDetailHeader}>
+                        <Ionicons name="warning" size={18} color="#fbbf24" />
+                        <Text style={styles.alertDetailTitle}>{alertDetails.event || 'Weather Alert'}</Text>
+                      </View>
+                      <Text style={styles.alertDetailDesc}>
+                        {alertDetails.description || alertDetails.headline || 'No additional details available. Check local weather sources for more information.'}
+                      </Text>
+                      {alertDetails.instruction && (
+                        <View style={styles.alertDetailInstruction}>
+                          <Text style={styles.alertDetailInstructionLabel}>What to do:</Text>
+                          <Text style={styles.alertDetailInstructionText}>{alertDetails.instruction}</Text>
+                        </View>
+                      )}
+                      {alertDetails.expires && (
+                        <Text style={styles.alertDetailExpires}>
+                          Expires: {new Date(alertDetails.expires).toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
               );
             })}
           </View>
