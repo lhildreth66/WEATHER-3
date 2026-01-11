@@ -216,6 +216,31 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           cursor: pointer;
         }
         .control-btn:active { background: #52525b; }
+        .zoom-controls {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          z-index: 1000;
+        }
+        .zoom-btn {
+          background: rgba(24,24,27,0.95);
+          border: none;
+          color: #fff;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          font-size: 20px;
+          font-weight: bold;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .zoom-btn:active { background: #3f3f46; }
+        .leaflet-control-zoom { display: none !important; }
       </style>
     </head>
     <body>
