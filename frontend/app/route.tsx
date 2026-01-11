@@ -798,71 +798,59 @@ export default function RouteScreen() {
               let condIcon = '✓';
               let condLabel = 'DRY';
               let condColor = '#22c55e';
-              let condDesc = 'Roads clear and dry';
+              let condDesc = 'Clear';
               let roadSurface = 'Normal driving conditions';
               
-              if (hasAlert) {
-                condIcon = '⚠️';
-                condLabel = 'HAZARD';
-                condColor = '#ef4444';
-                condDesc = wp.alerts[0]?.event || 'Weather alert active';
-                roadSurface = 'Check conditions before driving';
-              } else if (temp <= 32 && (conditions.includes('rain') || conditions.includes('freezing') || conditions.includes('drizzle'))) {
+              // Road conditions based ONLY on weather - NO alerts here
+              if (temp <= 32 && (conditions.includes('rain') || conditions.includes('freezing') || conditions.includes('drizzle'))) {
                 condIcon = '🧊';
                 condLabel = 'ICY';
                 condColor = '#ef4444';
-                condDesc = `BLACK ICE LIKELY - ${temp}°F`;
-                roadSurface = 'Roads may be ice-covered. Reduce speed significantly.';
+                condDesc = `Black ice likely`;
+                roadSurface = `${temp}°F - Reduce speed significantly`;
               } else if (temp <= 32 && conditions.includes('snow')) {
                 condIcon = '❄️';
                 condLabel = 'SNOW';
                 condColor = '#60a5fa';
-                condDesc = `SNOW-COVERED ROADS - ${temp}°F`;
-                roadSurface = 'Snow accumulation on roadway. Use caution.';
+                condDesc = `Snow-covered`;
+                roadSurface = `${temp}°F - Use caution`;
               } else if (temp > 32 && temp <= 40 && conditions.includes('snow')) {
                 condIcon = '🌨️';
                 condLabel = 'SLUSH';
                 condColor = '#f59e0b';
-                condDesc = `SLUSHY CONDITIONS - ${temp}°F`;
-                roadSurface = 'Wet, slushy roads. Reduced traction.';
+                condDesc = `Slushy`;
+                roadSurface = `${temp}°F - Reduced traction`;
               } else if (conditions.includes('fog') || conditions.includes('mist')) {
                 condIcon = '🌫️';
                 condLabel = 'FOG';
                 condColor = '#9ca3af';
-                condDesc = 'LIMITED VISIBILITY';
-                roadSurface = 'Use low beams. Increase following distance.';
+                condDesc = 'Low visibility';
+                roadSurface = 'Use low beams';
               } else if (conditions.includes('rain') || conditions.includes('shower') || conditions.includes('drizzle')) {
                 condIcon = '💧';
                 condLabel = 'WET';
                 condColor = '#3b82f6';
-                condDesc = 'WET ROADS';
-                roadSurface = 'Reduced traction. Watch for hydroplaning.';
+                condDesc = 'Wet roads';
+                roadSurface = 'Watch for hydroplaning';
               } else if (conditions.includes('thunder') || conditions.includes('storm')) {
                 condIcon = '⛈️';
                 condLabel = 'STORM';
                 condColor = '#7c3aed';
-                condDesc = 'STORM CONDITIONS';
-                roadSurface = 'Heavy rain, possible flooding. Consider delaying.';
+                condDesc = 'Storm conditions';
+                roadSurface = 'Heavy rain possible';
               } else if (windSpeed > 30) {
                 condIcon = '💨';
                 condLabel = 'WINDY';
                 condColor = '#f59e0b';
-                condDesc = `HIGH WINDS - ${windSpeed} mph`;
-                roadSurface = 'Crosswinds may affect vehicle control.';
+                condDesc = `Windy - ${windSpeed} mph`;
+                roadSurface = 'Watch for crosswinds';
               }
               
               const mileMarker = Math.round(wp.waypoint.distance_from_start || 0);
               const locationName = wp.waypoint.name || 'Unknown';
-              const isExpanded = expandedCards.has(index);
-              const alertDetails = wp.alerts && wp.alerts.length > 0 ? wp.alerts[0] : null;
               
               return (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[styles.conditionCard, isExpanded && styles.conditionCardExpanded]}
-                  onPress={() => hasAlert || alertDetails ? toggleCardExpand(index) : null}
-                  activeOpacity={hasAlert ? 0.7 : 1}
-                >
+                <View key={index} style={styles.conditionCard}>
                   <View style={styles.conditionCardMain}>
                     <View style={styles.mileMarkerBox}>
                       <Text style={styles.mileMarkerLabel}>MILE</Text>
@@ -882,37 +870,8 @@ export default function RouteScreen() {
                         {wp.weather?.temperature}°F • {wp.weather?.conditions || 'Clear'}
                       </Text>
                     </View>
-                    {(hasAlert || alertDetails) && (
-                      <View style={styles.expandIndicator}>
-                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#6b7280" />
-                      </View>
-                    )}
                   </View>
-                  
-                  {/* Expanded Alert Details */}
-                  {isExpanded && alertDetails && (
-                    <View style={styles.alertDetailBox}>
-                      <View style={styles.alertDetailHeader}>
-                        <Ionicons name="warning" size={18} color="#fbbf24" />
-                        <Text style={styles.alertDetailTitle}>{alertDetails.event || 'Weather Alert'}</Text>
-                      </View>
-                      <Text style={styles.alertDetailDesc}>
-                        {alertDetails.description || alertDetails.headline || 'No additional details available. Check local weather sources for more information.'}
-                      </Text>
-                      {alertDetails.instruction && (
-                        <View style={styles.alertDetailInstruction}>
-                          <Text style={styles.alertDetailInstructionLabel}>What to do:</Text>
-                          <Text style={styles.alertDetailInstructionText}>{alertDetails.instruction}</Text>
-                        </View>
-                      )}
-                      {alertDetails.expires && (
-                        <Text style={styles.alertDetailExpires}>
-                          Expires: {new Date(alertDetails.expires).toLocaleString()}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
