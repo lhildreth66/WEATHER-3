@@ -793,7 +793,6 @@ export default function RouteScreen() {
               const temp = wp.weather?.temperature || 50;
               const conditions = (wp.weather?.conditions || '').toLowerCase();
               const windSpeed = wp.weather?.wind_speed ? parseInt(wp.weather.wind_speed) : 0;
-              const windSpeed = wp.weather?.wind_speed ? parseInt(wp.weather.wind_speed) : 0;
               
               let condIcon = '✓';
               let condLabel = 'DRY';
