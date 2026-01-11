@@ -419,6 +419,20 @@ export default function RouteScreen() {
   // Radar map state
   const [showRadarMap, setShowRadarMap] = useState(false);
   
+  // Expanded alert state - track which cards are expanded
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+  
+  // Toggle card expansion
+  const toggleCardExpand = (index: number) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedCards(newExpanded);
+  };
+  
   // AI Chat state
   const [showChat, setShowChat] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
