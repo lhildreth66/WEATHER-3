@@ -756,25 +756,27 @@ export default function RouteScreen() {
                 roadSurface = 'Crosswinds may affect vehicle control.';
               }
               
+              const mileMarker = Math.round(wp.waypoint.distance_from_start || 0);
+              const locationName = wp.waypoint.name || 'Unknown';
+              
               return (
                 <View key={index} style={styles.conditionCard}>
+                  <View style={styles.mileMarkerBox}>
+                    <Text style={styles.mileMarkerLabel}>MILE</Text>
+                    <Text style={styles.mileMarkerNumber}>{mileMarker}</Text>
+                  </View>
                   <View style={[styles.conditionBadge, { backgroundColor: condColor }]}>
                     <Text style={styles.conditionIcon}>{condIcon}</Text>
                     <Text style={styles.conditionLabel}>{condLabel}</Text>
                   </View>
                   <View style={styles.conditionInfo}>
                     <Text style={styles.conditionLocation} numberOfLines={1}>
-                      {wp.waypoint.name || `Mile ${Math.round(wp.waypoint.distance_from_start || 0)}`}
+                      {locationName}
                     </Text>
                     <Text style={styles.conditionDesc}>{condDesc}</Text>
                     <Text style={styles.roadSurface}>{roadSurface}</Text>
                     <Text style={styles.conditionWeather}>
-                      Weather: {wp.weather?.temperature}°F • {wp.weather?.conditions || 'Clear'}
-                    </Text>
-                  </View>
-                  <View style={styles.conditionMeta}>
-                    <Text style={styles.conditionMiles}>
-                      {Math.round(wp.waypoint.distance_from_start || 0)} mi
+                      {wp.weather?.temperature}°F • {wp.weather?.conditions || 'Clear'}
                     </Text>
                   </View>
                 </View>
