@@ -1622,6 +1622,10 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  alertCardExpanded: {
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+  },
   alertExtreme: {
     backgroundColor: '#7f1d1d',
   },
@@ -1648,6 +1652,43 @@ const styles = StyleSheet.create({
     color: '#fecaca',
     fontSize: 12,
     marginTop: 2,
+  },
+  alertExpandedContent: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+  },
+  alertFullDescription: {
+    marginBottom: 12,
+  },
+  alertFullTitle: {
+    color: '#fbbf24',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  alertFullText: {
+    color: '#fff',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  alertInstructionBox: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  alertInstructionTitle: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  alertInstructionText: {
+    color: '#bbf7d0',
+    fontSize: 12,
+    lineHeight: 18,
   },
   alertAction: {
     flexDirection: 'row',
