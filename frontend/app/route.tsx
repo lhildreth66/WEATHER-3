@@ -1031,14 +1031,55 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#27272a',
     borderBottomWidth: 1,
     borderBottomColor: '#3f3f46',
   },
   backBtn: {
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 6,
+    gap: 4,
+  },
+  backText: {
+    color: '#60a5fa',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareBtn: {
+    padding: 6,
+  },
+  statsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1f1f23',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#3f3f46',
   },
   headerCenter: {
     flex: 1,
@@ -1055,7 +1096,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   speakBtn: {
-    padding: 4,
+    padding: 6,
   },
   safetyBanner: {
     flexDirection: 'row',
