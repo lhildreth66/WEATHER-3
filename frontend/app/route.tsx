@@ -245,6 +245,10 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
     </head>
     <body>
       <div id="map"></div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomInBtn">+</button>
+        <button class="zoom-btn" id="zoomOutBtn">−</button>
+      </div>
       <div class="legend-bar">
         <div class="legend-row">
           <div class="legend-section">
