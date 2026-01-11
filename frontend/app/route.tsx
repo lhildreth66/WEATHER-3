@@ -146,8 +146,22 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; background: #1a1a1a; }
-        #map { width: 100%; height: calc(100% - 70px); }
+        html, body { 
+          width: 100%; 
+          height: 100%; 
+          background: #1a1a1a;
+          touch-action: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+        #map { 
+          width: 100%; 
+          height: calc(100% - 70px);
+          touch-action: none;
+        }
+        .leaflet-container {
+          touch-action: none !important;
+        }
         .legend-bar {
           position: fixed;
           bottom: 0;
