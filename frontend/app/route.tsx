@@ -1448,8 +1448,19 @@ const styles = StyleSheet.create({
   },
   // Radar Map styles
   radarBtn: {
-    padding: 8,
-    marginRight: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#14532d',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    gap: 4,
+  },
+  radarBtnText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '600',
   },
   radarModalOverlay: {
     flex: 1,
