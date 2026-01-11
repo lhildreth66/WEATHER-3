@@ -300,33 +300,35 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         </div>
       </div>
       <script>
-        // US-only bounds - strict containment
+        // US-only bounds - strict containment  
         var usBounds = L.latLngBounds(
-          L.latLng(24.5, -125),  // Southwest (includes Florida Keys, Southern Texas)
-          L.latLng(49.5, -66)    // Northeast (includes Maine, Washington State)
+          L.latLng(25, -124),  // Southwest
+          L.latLng(49, -67)    // Northeast
         );
         
         var map = L.map('map', { 
           zoomControl: false,
           attributionControl: false,
-          maxBounds: usBounds,
-          maxBoundsViscosity: 0.9,
-          minZoom: 4,
+          maxBounds: usBounds.pad(0.1),
+          maxBoundsViscosity: 1.0,
+          minZoom: 5,
           maxZoom: 12,
-          bounceAtZoomLimits: false
-        }).setView([39, -98], 4);  // Center of US
+          bounceAtZoomLimits: true
+        });
         
-        // Fit to US bounds on load
-        map.fitBounds(usBounds);
-        
-        // Prevent zooming out beyond US view
-        map.setMinZoom(4);
+        // Fit exactly to US bounds - no extra space
+        map.fitBounds(usBounds, { padding: [0, 0] });
         
         // Dark base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           maxZoom: 19,
           attribution: ''
         }).addTo(map);
+        
+        // Prevent dragging outside US
+        map.on('drag', function() {
+          map.panInsideBounds(usBounds, { animate: false });
+        });
         
         // RainViewer radar layer
         var radarLayer = null;
