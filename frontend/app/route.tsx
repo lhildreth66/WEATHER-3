@@ -156,7 +156,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         }
         #map { 
           width: 100%; 
-          height: calc(100% - 70px);
+          height: calc(100% - 50px);
           touch-action: none;
         }
         .leaflet-container {
