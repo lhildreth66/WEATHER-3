@@ -339,7 +339,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           radarLayer = L.tileLayer(
             'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::USCOMP-N0Q-0/{z}/{x}/{y}.png?_=' + timestamp,
             {
-              opacity: 0.75,
+              opacity: 0.5,
               zIndex: 100,
               attribution: 'NOAA/NWS'
             }
@@ -348,6 +348,12 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         
         // Initial load
         updateRadar();
+        
+        // Add labels layer ON TOP of radar so they're always visible
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19,
+          zIndex: 200
+        }).addTo(map);
         
         // Auto-refresh every 5 minutes
         setInterval(updateRadar, 300000);
