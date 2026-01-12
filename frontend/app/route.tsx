@@ -321,63 +321,42 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           map.dragging.enable();
         }
         
-        // RainViewer radar layer
+        // NOAA NWS Radar - shows rain, snow, and mixed precipitation
         var radarLayer = null;
-        var radarFrames = [];
-        var currentFrame = 0;
-        var isPlaying = false;
-        var playInterval = null;
+        var currentTime = new Date();
         
-        // Fetch available radar timestamps from RainViewer
-        fetch('https://api.rainviewer.com/public/weather-maps.json')
-          .then(response => response.json())
-          .then(data => {
-            radarFrames = data.radar.past.concat(data.radar.nowcast || []);
-            if (radarFrames.length > 0) {
-              currentFrame = radarFrames.length - 1; // Start with most recent
-              showRadarFrame(currentFrame);
-            }
-          })
-          .catch(err => {
-            document.getElementById('timeDisplay').textContent = 'Radar unavailable';
-          });
-        
-        function showRadarFrame(index) {
-          if (index < 0 || index >= radarFrames.length) return;
-          
-          var frame = radarFrames[index];
-          var timestamp = new Date(frame.time * 1000);
-          var timeStr = timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          
+        // Add NOAA radar layer (Iowa Environmental Mesonet - official NWS data)
+        function updateRadar() {
+          var timestamp = Math.floor(Date.now() / 1000);
+          var timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
           document.getElementById('timeDisplay').textContent = 'Radar: ' + timeStr;
           
           if (radarLayer) {
             map.removeLayer(radarLayer);
           }
           
+          // NOAA/NWS composite radar - includes ALL precipitation types (rain, snow, ice, mixed)
           radarLayer = L.tileLayer(
-            'https://tilecache.rainviewer.com' + frame.path + '/256/{z}/{x}/{y}/4/1_1.png',
+            'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::USCOMP-N0Q-0/{z}/{x}/{y}.png?_=' + timestamp,
             {
-              opacity: 0.7,
-              zIndex: 100
+              opacity: 0.75,
+              zIndex: 100,
+              attribution: 'NOAA/NWS'
             }
           ).addTo(map);
         }
         
-        // Play/pause animation
+        // Initial load
+        updateRadar();
+        
+        // Auto-refresh every 5 minutes
+        setInterval(updateRadar, 300000);
+        
+        // Play button refreshes radar
         document.getElementById('playBtn').onclick = function() {
-          if (isPlaying) {
-            clearInterval(playInterval);
-            isPlaying = false;
-            this.textContent = '▶';
-          } else {
-            isPlaying = true;
-            this.textContent = '⏸';
-            playInterval = setInterval(function() {
-              currentFrame = (currentFrame + 1) % radarFrames.length;
-              showRadarFrame(currentFrame);
-            }, 500);
-          }
+          updateRadar();
+          this.textContent = '↻';
+          setTimeout(() => { this.textContent = '▶'; }, 1000);
         };
         
         // Zoom button handlers
