@@ -167,56 +167,60 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           bottom: 0;
           left: 0;
           right: 0;
-          height: 70px;
+          height: 50px;
           background: rgba(24,24,27,0.98);
           z-index: 1000;
           font-family: -apple-system, BlinkMacSystemFont, sans-serif;
           display: flex;
           flex-direction: column;
-          padding: 6px 10px;
+          padding: 8px 16px;
           border-top: 1px solid #3f3f46;
         }
-        .legend-row {
+        .gradient-legend {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
+          flex-direction: column;
           gap: 4px;
         }
-        .legend-section {
+        .gradient-bar {
+          height: 8px;
+          border-radius: 4px;
+          background: linear-gradient(to right, 
+            #00ff00 0%, 
+            #ffff00 20%, 
+            #ff8800 35%, 
+            #ff0000 45%, 
+            #ff00ff 55%, 
+            #cc66ff 65%,
+            #91d3ff 80%, 
+            #ffffff 100%
+          );
+        }
+        .gradient-labels {
           display: flex;
-          align-items: center;
-          gap: 3px;
+          justify-content: space-between;
+          padding: 0 4px;
         }
-        .legend-section-title {
-          color: #6b7280;
-          font-size: 8px;
-          font-weight: 700;
-          margin-right: 4px;
-        }
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-        }
-        .legend-color {
-          width: 14px;
-          height: 10px;
-          border-radius: 2px;
-        }
-        .legend-label {
-          color: #9ca3af;
-          font-size: 8px;
+        .gradient-label {
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
         }
         .controls-row {
+          position: absolute;
+          bottom: 60px;
+          left: 50%;
+          transform: translateX(-50%);
           display: flex;
           align-items: center;
-          justify-content: center;
           gap: 12px;
-          margin-top: 4px;
+          background: rgba(24,24,27,0.9);
+          padding: 6px 14px;
+          border-radius: 20px;
+          z-index: 1000;
         }
         .time-display {
           color: #eab308;
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 600;
         }
         .control-btn {
@@ -263,54 +267,18 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         <button class="zoom-btn" id="zoomInBtn">+</button>
         <button class="zoom-btn" id="zoomOutBtn">−</button>
       </div>
+      <div class="controls-row">
+        <button class="control-btn" id="playBtn">▶</button>
+        <span class="time-display" id="timeDisplay">Loading...</span>
+      </div>
       <div class="legend-bar">
-        <div class="legend-row">
-          <div class="legend-section">
-            <span class="legend-section-title">RAIN</span>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #00ff00;"></div>
-              <span class="legend-label">Light</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #ffff00;"></div>
-              <span class="legend-label">Mod</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #ff8800;"></div>
-              <span class="legend-label">Heavy</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #ff0000;"></div>
-              <span class="legend-label">Intense</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #ff00ff;"></div>
-              <span class="legend-label">Extreme</span>
-            </div>
+        <div class="gradient-legend">
+          <div class="gradient-labels">
+            <span class="gradient-label">Rain</span>
+            <span class="gradient-label">Mixed</span>
+            <span class="gradient-label">Snow</span>
           </div>
-          <div class="legend-section">
-            <span class="legend-section-title">SNOW</span>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #91d3ff;"></div>
-              <span class="legend-label">Light</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #5eb2f7;"></div>
-              <span class="legend-label">Mod</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #2090e8;"></div>
-              <span class="legend-label">Heavy</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: #ffffff; border: 1px solid #666;"></div>
-              <span class="legend-label">Ice</span>
-            </div>
-          </div>
-        </div>
-        <div class="controls-row">
-          <button class="control-btn" id="playBtn">▶</button>
-          <span class="time-display" id="timeDisplay">Loading...</span>
+          <div class="gradient-bar"></div>
         </div>
       </div>
       <script>
