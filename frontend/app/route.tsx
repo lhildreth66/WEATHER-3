@@ -133,7 +133,6 @@ const getManeuverIcon = (maneuver: string): string => {
 
 // Generate radar map HTML using RainViewer API (free weather radar)
 const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
-  // Constrain to continental US bounds only
   const usLat = Math.max(25, Math.min(48, centerLat));
   const usLon = Math.max(-124, Math.min(-68, centerLon));
   
@@ -146,120 +145,100 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { 
-          width: 100%; 
-          height: 100%; 
-          background: #1a1a1a;
-          touch-action: none;
-          -webkit-user-select: none;
-          user-select: none;
-        }
-        #map { 
-          width: 100%; 
-          height: calc(100% - 50px);
-          touch-action: none;
-        }
-        .leaflet-container {
-          touch-action: none !important;
-        }
-        .legend-bar {
+        html, body { width: 100%; height: 100%; background: #1a1a1a; }
+        #map { width: 100%; height: calc(100% - 140px); }
+        .legend-box {
           position: fixed;
           bottom: 0;
           left: 0;
           right: 0;
-          height: 50px;
-          background: rgba(30,30,30,0.95);
+          background: rgba(20,20,20,0.95);
+          padding: 10px 12px;
           z-index: 1000;
           font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-          display: flex;
-          flex-direction: column;
-          padding: 8px 16px;
-          border-top: 1px solid #555;
         }
-        .gradient-legend {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .gradient-bar {
-          height: 10px;
-          border-radius: 5px;
-          background: linear-gradient(to right, 
-            #00ff00 0%, 
-            #ffff00 20%, 
-            #ff8800 35%, 
-            #ff0000 45%, 
-            #ff00ff 55%, 
-            #cc66ff 65%,
-            #91d3ff 80%, 
-            #ffffff 100%
-          );
-          border: 1px solid #444;
-        }
-        .gradient-labels {
-          display: flex;
-          justify-content: space-between;
-          padding: 0 4px;
-        }
-        .gradient-label {
-          color: #fff;
+        .legend-title {
+          color: #22d3ee;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .legend-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 6px;
+        }
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .legend-color {
+          width: 20px;
+          height: 14px;
+          border-radius: 3px;
+        }
+        .legend-text {
+          color: #fff;
+          font-size: 12px;
+          font-weight: 500;
         }
         .controls-row {
           position: absolute;
-          bottom: 60px;
+          bottom: 150px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
           align-items: center;
-          gap: 12px;
-          background: rgba(24,24,27,0.9);
-          padding: 6px 14px;
-          border-radius: 20px;
+          gap: 10px;
+          background: rgba(0,0,0,0.8);
+          padding: 8px 16px;
+          border-radius: 25px;
           z-index: 1000;
         }
-        .time-display {
-          color: #eab308;
+        .radar-toggle {
+          background: #1e3a5f;
+          border: 2px solid #22d3ee;
+          color: #22d3ee;
+          padding: 6px 12px;
+          border-radius: 20px;
           font-size: 12px;
           font-weight: 600;
-        }
-        .control-btn {
-          background: #3f3f46;
-          border: none;
-          color: #fff;
-          width: 28px;
-          height: 28px;
-          border-radius: 14px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-        .control-btn:active { background: #52525b; }
-        .zoom-controls {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          z-index: 1000;
-        }
-        .zoom-btn {
-          background: rgba(24,24,27,0.95);
-          border: none;
-          color: #fff;
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          font-size: 20px;
-          font-weight: bold;
           cursor: pointer;
           display: flex;
           align-items: center;
-          justify-content: center;
+          gap: 6px;
         }
-        .zoom-btn:active { background: #3f3f46; }
+        .radar-toggle.active { background: #22d3ee; color: #000; }
+        .time-display {
+          color: #fff;
+          font-size: 11px;
+        }
+        .zoom-controls {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background: #fff;
+          border-radius: 4px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          z-index: 1000;
+        }
+        .zoom-btn {
+          display: block;
+          width: 36px;
+          height: 36px;
+          background: #fff;
+          border: none;
+          border-bottom: 1px solid #ddd;
+          font-size: 22px;
+          font-weight: bold;
+          cursor: pointer;
+          color: #333;
+        }
+        .zoom-btn:last-child { border-bottom: none; }
+        .zoom-btn:hover { background: #f0f0f0; }
         .leaflet-control-zoom { display: none !important; }
+        .loading { color: #22d3ee; text-align: center; padding: 20px; }
       </style>
     </head>
     <body>
@@ -269,131 +248,134 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         <button class="zoom-btn" id="zoomOutBtn">−</button>
       </div>
       <div class="controls-row">
-        <button class="control-btn" id="playBtn">▶</button>
-        <span class="time-display" id="timeDisplay">Loading...</span>
+        <button class="radar-toggle active" id="radarBtn">☁️ Radar</button>
+        <span class="time-display" id="timeDisplay">Loading alerts...</span>
       </div>
-      <div class="legend-bar">
-        <div class="gradient-legend">
-          <div class="gradient-labels">
-            <span class="gradient-label">Rain</span>
-            <span class="gradient-label">Mixed</span>
-            <span class="gradient-label">Snow</span>
+      <div class="legend-box">
+        <div class="legend-title">Weather Alerts</div>
+        <div class="legend-grid">
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ff69b4;"></div>
+            <span class="legend-text">Snow/Winter</span>
           </div>
-          <div class="gradient-bar"></div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #1e90ff;"></div>
+            <span class="legend-text">Ice/Cold</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #32cd32;"></div>
+            <span class="legend-text">Rain/Flood</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ffa500;"></div>
+            <span class="legend-text">Thunderstorm</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ff0000;"></div>
+            <span class="legend-text">Tornado</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ff1493;"></div>
+            <span class="legend-text">Hurricane</span>
+          </div>
         </div>
       </div>
       <script>
-        // Initialize map with explicit touch zoom settings
         var map = L.map('map', { 
           zoomControl: false,
           attributionControl: false,
           minZoom: 4,
-          maxZoom: 12,
-          // Enable all zoom methods
-          touchZoom: 'center',
-          scrollWheelZoom: true,
-          doubleClickZoom: true,
-          boxZoom: false,
-          // Smooth zooming
-          zoomSnap: 0.1,
-          zoomDelta: 0.5,
-          wheelPxPerZoomLevel: 60,
-          // No restrictions
-          bounceAtZoomLimits: false,
-          worldCopyJump: false,
-          inertia: true,
-          inertiaDeceleration: 3000
-        });
+          maxZoom: 12
+        }).setView([${usLat}, ${usLon}], 5);
         
-        // Center on US
-        map.setView([39, -96], 5);
-        
-        // Light base map (Positron - white/light green)
+        // Light map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19,
-          attribution: ''
+          maxZoom: 19
         }).addTo(map);
         
-        // Force enable touch handlers
-        if (map.touchZoom) {
-          map.touchZoom.enable();
-        }
-        if (map.dragging) {
-          map.dragging.enable();
-        }
-        
-        // RainViewer radar with smooth tiles and snow coverage
+        var alertsLayer = L.layerGroup().addTo(map);
         var radarLayer = null;
-        var radarFrames = [];
-        var currentFrame = 0;
-        var isPlaying = false;
-        var playInterval = null;
+        var showRadar = true;
         
-        // Fetch radar data from RainViewer
-        fetch('https://api.rainviewer.com/public/weather-maps.json')
-          .then(response => response.json())
+        // Get alert color based on event type
+        function getAlertColor(event) {
+          event = event.toLowerCase();
+          if (event.includes('tornado')) return '#ff0000';
+          if (event.includes('hurricane') || event.includes('tropical')) return '#ff1493';
+          if (event.includes('thunder') || event.includes('severe')) return '#ffa500';
+          if (event.includes('flood') || event.includes('rain')) return '#32cd32';
+          if (event.includes('ice') || event.includes('cold') || event.includes('freeze') || event.includes('chill')) return '#1e90ff';
+          if (event.includes('snow') || event.includes('winter') || event.includes('blizzard')) return '#ff69b4';
+          return '#808080';
+        }
+        
+        // Fetch NWS alerts
+        fetch('https://api.weather.gov/alerts/active?status=actual&message_type=alert')
+          .then(r => r.json())
           .then(data => {
-            radarFrames = data.radar.past.concat(data.radar.nowcast || []);
-            if (radarFrames.length > 0) {
-              currentFrame = radarFrames.length - 1;
-              showRadarFrame(currentFrame);
-            }
+            var count = 0;
+            data.features.forEach(function(alert) {
+              if (alert.geometry && alert.geometry.coordinates) {
+                var coords = alert.geometry.coordinates;
+                var color = getAlertColor(alert.properties.event || '');
+                
+                if (alert.geometry.type === 'Polygon') {
+                  var latlngs = coords[0].map(function(c) { return [c[1], c[0]]; });
+                  L.polygon(latlngs, {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.4,
+                    weight: 1
+                  }).bindPopup('<b>' + alert.properties.event + '</b><br>' + (alert.properties.headline || '')).addTo(alertsLayer);
+                  count++;
+                } else if (alert.geometry.type === 'MultiPolygon') {
+                  coords.forEach(function(poly) {
+                    var latlngs = poly[0].map(function(c) { return [c[1], c[0]]; });
+                    L.polygon(latlngs, {
+                      color: color,
+                      fillColor: color,
+                      fillOpacity: 0.4,
+                      weight: 1
+                    }).bindPopup('<b>' + alert.properties.event + '</b><br>' + (alert.properties.headline || '')).addTo(alertsLayer);
+                    count++;
+                  });
+                }
+              }
+            });
+            document.getElementById('timeDisplay').textContent = count + ' active alerts';
           })
-          .catch(err => {
-            document.getElementById('timeDisplay').textContent = 'Radar unavailable';
+          .catch(function() {
+            document.getElementById('timeDisplay').textContent = 'Alerts unavailable';
           });
         
-        function showRadarFrame(index) {
-          if (index < 0 || index >= radarFrames.length) return;
-          
-          var frame = radarFrames[index];
-          var timestamp = new Date(frame.time * 1000);
-          var timeStr = timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          
-          document.getElementById('timeDisplay').textContent = 'Radar: ' + timeStr;
-          
-          if (radarLayer) {
+        // Also add radar overlay
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+          .then(r => r.json())
+          .then(data => {
+            var frames = data.radar.past;
+            if (frames.length > 0) {
+              var latest = frames[frames.length - 1];
+              radarLayer = L.tileLayer(
+                'https://tilecache.rainviewer.com' + latest.path + '/512/{z}/{x}/{y}/2/1_1.png',
+                { opacity: 0.5, zIndex: 50, tileSize: 512, zoomOffset: -1 }
+              );
+              if (showRadar) radarLayer.addTo(map);
+            }
+          });
+        
+        // Toggle radar
+        document.getElementById('radarBtn').onclick = function() {
+          showRadar = !showRadar;
+          this.classList.toggle('active', showRadar);
+          if (showRadar && radarLayer) {
+            radarLayer.addTo(map);
+          } else if (radarLayer) {
             map.removeLayer(radarLayer);
           }
-          
-          // Smooth tiles with snow: /256/{z}/{x}/{y}/{colorScheme}/{smooth}_{snow}.png
-          // colorScheme 2 = Universal Blue (clean look)
-          // smooth 1 = smooth rendering
-          // snow 1 = show snow coverage
-          radarLayer = L.tileLayer(
-            'https://tilecache.rainviewer.com' + frame.path + '/512/{z}/{x}/{y}/2/1_1.png',
-            {
-              opacity: 0.6,
-              zIndex: 100,
-              tileSize: 512,
-              zoomOffset: -1
-            }
-          ).addTo(map);
-        }
-        
-        // Play/pause animation
-        document.getElementById('playBtn').onclick = function() {
-          if (isPlaying) {
-            clearInterval(playInterval);
-            isPlaying = false;
-            this.textContent = '▶';
-          } else {
-            isPlaying = true;
-            this.textContent = '⏸';
-            playInterval = setInterval(function() {
-              currentFrame = (currentFrame + 1) % radarFrames.length;
-              showRadarFrame(currentFrame);
-            }, 500);
-          }
         };
         
-        // Zoom button handlers
-        document.getElementById('zoomInBtn').onclick = function() {
-          map.zoomIn();
-        };
-        document.getElementById('zoomOutBtn').onclick = function() {
-          map.zoomOut();
-        };
+        document.getElementById('zoomInBtn').onclick = function() { map.zoomIn(); };
+        document.getElementById('zoomOutBtn').onclick = function() { map.zoomOut(); };
       </script>
     </body>
     </html>
