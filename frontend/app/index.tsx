@@ -582,7 +582,7 @@ export default function HomeScreen() {
             zoomControl: false,
             attributionControl: false,
             minZoom: 3,
-            maxZoom: 12
+            maxZoom: 10
           }).setView([${usLat}, ${usLon}], 4);
           
           // Light base map
@@ -590,15 +590,13 @@ export default function HomeScreen() {
             maxZoom: 19
           }).addTo(map);
           
-          // IEM Watch/Warning/Advisory WMS Layer with correct parameters
-          var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
-            layers: 'warnings_c,watches_c',
+          // IEM WMS Layer using standard EPSG:3857 (Web Mercator)
+          var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
+            layers: 'warnings_c',
             format: 'image/png',
             transparent: true,
-            version: '1.1.1',
-            crs: L.CRS.EPSG4326,
-            opacity: 0.8,
-            zIndex: 100
+            version: '1.3.0',
+            opacity: 0.75
           }).addTo(map);
           
           var radarLayer = null;
