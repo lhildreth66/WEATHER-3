@@ -362,62 +362,8 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
     </html>
   `;
 };
-            <span class="legend-text">Tornado</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #ff8c00;"></div>
-            <span class="legend-text">Severe Storm</span>
-          </div>
-        </div>
-      </div>
-      <script>
-        var map = L.map('map', { 
-          zoomControl: false,
-          attributionControl: false,
-          minZoom: 3,
-          maxZoom: 12
-        }).setView([${usLat}, ${usLon}], 5);
-        
-        // Light map base
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19
-        }).addTo(map);
-        
-        var alertsLayer = L.layerGroup().addTo(map);
-        var radarLayer = null;
-        var showRadar = true;
-        
-        // NWS official alert colors (matching their map)
-        function getAlertColor(event) {
-          event = event.toLowerCase();
-          // Winter alerts
-          if (event.includes('winter storm warning')) return '#ff69b4';
-          if (event.includes('winter storm watch')) return '#4682b4';
-          if (event.includes('winter weather')) return '#7b68ee';
-          if (event.includes('blizzard')) return '#ff4500';
-          if (event.includes('ice storm')) return '#8b008b';
-          // Cold alerts
-          if (event.includes('extreme cold')) return '#00bfff';
-          if (event.includes('wind chill warning')) return '#b0c4de';
-          if (event.includes('wind chill watch')) return '#5f9ea0';
-          if (event.includes('wind chill advisory')) return '#afeeee';
-          if (event.includes('freeze warning')) return '#483d8b';
-          if (event.includes('freeze watch')) return '#00ced1';
-          if (event.includes('frost')) return '#6495ed';
-          // Snow/Ice
-          if (event.includes('snow')) return '#4169e1';
-          if (event.includes('ice') || event.includes('freezing')) return '#8a2be2';
-          // Severe weather
-          if (event.includes('tornado warning')) return '#ff0000';
-          if (event.includes('tornado watch')) return '#ffff00';
-          if (event.includes('severe thunderstorm warning')) return '#ff8c00';
-          if (event.includes('severe thunderstorm watch')) return '#db7093';
-          // Flood
-          if (event.includes('flash flood warning')) return '#8b0000';
-          if (event.includes('flash flood watch')) return '#2e8b57';
-          if (event.includes('flood warning')) return '#00ff00';
-          if (event.includes('flood watch')) return '#2e8b57';
-          if (event.includes('flood advisory')) return '#00ff7f';
+
+export default function RouteScreen() {
           // Wind
           if (event.includes('high wind warning')) return '#daa520';
           if (event.includes('high wind watch')) return '#b8860b';
