@@ -590,12 +590,12 @@ export default function HomeScreen() {
             maxZoom: 19
           }).addTo(map);
           
-          // IEM WMS Layer - using direct URL construction for better compatibility
-          var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
-            layers: 'warnings_c,watches_c',
+          // IEM WMS Layer - using correct layer names and version
+          var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
+            layers: 'warnings_c',
             format: 'image/png',
             transparent: true,
-            uppercase: true,
+            version: '1.3.0',
             opacity: 0.8
           }).addTo(map);
           
