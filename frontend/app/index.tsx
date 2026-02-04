@@ -100,6 +100,9 @@ export default function HomeScreen() {
   const [showAddStop, setShowAddStop] = useState(false);
   const [newStopLocation, setNewStopLocation] = useState('');
   const [newStopType, setNewStopType] = useState('stop');
+  
+  // Radar map state
+  const [showRadarMap, setShowRadarMap] = useState(false);
 
   // Check for speech recognition support on web
   useEffect(() => {
