@@ -739,6 +739,13 @@ export default function HomeScreen() {
                   <Text style={styles.subtitle}>Weather forecasts for your journey</Text>
                 </View>
                 <TouchableOpacity 
+                  style={styles.radarHomeBtn}
+                  onPress={() => setShowRadarMap(true)}
+                >
+                  <Ionicons name="radio-outline" size={18} color="#22c55e" />
+                  <Text style={styles.radarHomeBtnText}>Radar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
                   style={styles.favoriteButton}
                   onPress={addToFavorites}
                 >
