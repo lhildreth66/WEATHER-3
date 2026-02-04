@@ -1,27 +1,30 @@
 {
   "expo": {
-    "name": "Routecast",
-    "slug": "routecast",
+    "name": "Weather REDO",
+    "slug": "weather-redo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "routecast",
+    "scheme": "weather-redo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "description": "Plan your road trip with real-time weather forecasts along your route. Get alerts for bad weather and AI-powered driving recommendations.",
-    "owner": "routecast",
+    "description": "Weather REDO: real-time forecasts and alerts along your route.",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.routecast.app",
+      "bundleIdentifier": "com.promedtrans01.weatherredo",
       "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Routecast needs your location to show weather along your route.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Routecast needs your location to provide weather updates during your trip.",
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
-      "package": "com.routecast.app",
+      "package": "com.promedtrans01.weatherredo",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -38,7 +41,9 @@
         "SCHEDULE_EXACT_ALARM",
         "POST_NOTIFICATIONS",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -80,9 +85,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "0bd77d06-d5af-40da-83f9-19f7aa1599a6"
       }
-    }
+    },
+    "owner": "promedtrans01"
   }
 }
