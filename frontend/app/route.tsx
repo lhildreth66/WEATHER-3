@@ -365,25 +365,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
 
 export default function RouteScreen() {
   const params = useLocalSearchParams();
-          showRadar = !showRadar;
-          this.classList.toggle('active', showRadar);
-          if (showRadar && radarLayer) {
-            radarLayer.addTo(map);
-          } else if (radarLayer) {
-            map.removeLayer(radarLayer);
-          }
-        };
-        
-        document.getElementById('zoomInBtn').onclick = function() { map.zoomIn(); };
-        document.getElementById('zoomOutBtn').onclick = function() { map.zoomOut(); };
-      </script>
-    </body>
-    </html>
-  `;
-};
-
-export default function RouteScreen() {
-  const params = useLocalSearchParams();
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'conditions' | 'directions' | 'alerts'>('conditions');
