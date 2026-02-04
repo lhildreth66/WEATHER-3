@@ -318,7 +318,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         
         var radarLayer = null;
         var showRadar = true;
-        var showAlerts = true;
         
         document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
         
