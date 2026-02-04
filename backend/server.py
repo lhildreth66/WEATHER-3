@@ -1299,17 +1299,17 @@ Provide a 2-3 sentence summary focusing on:
 
 Be concise and practical."""
 
-        response = await openai_client.chat.completions.create(
-            model="gemini-2.0-flash",
-            messages=[
-                {"role": "system", "content": "You are a helpful travel weather assistant providing concise, driver-friendly weather summaries."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300,
-            temperature=0.7
+        # Use Google Gemini for AI summary
+        if not GOOGLE_API_KEY:
+            return "AI summary unavailable - Google API key not configured."
+        
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = await asyncio.to_thread(
+            model.generate_content,
+            prompt
         )
         
-        return response.choices[0].message.content if response.choices else "Unable to generate summary."
+        return response.text if response.text else "Unable to generate summary."
     except Exception as e:
         logger.error(f"AI summary error: {e}")
         return f"Weather summary unavailable. Check individual waypoints for conditions."
