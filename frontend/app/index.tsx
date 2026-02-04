@@ -422,6 +422,295 @@ export default function HomeScreen() {
     rest: 'bed',
   };
 
+  // Generate radar map HTML using RainViewer API and NWS alerts
+  const generateRadarMapHtml = (): string => {
+    // Default to center of US
+    const usLat = 39.8283;
+    const usLon = -98.5795;
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: 100%; height: 100%; background: #f0f0f0; }
+          #map { width: 100%; height: calc(100% - 120px); }
+          .legend-box {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #003366;
+            padding: 8px 12px;
+            z-index: 1000;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+          }
+          .legend-title {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+          }
+          .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+          }
+          .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .legend-color {
+            width: 18px;
+            height: 12px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.3);
+          }
+          .legend-text {
+            color: #fff;
+            font-size: 10px;
+            font-weight: 500;
+          }
+          .controls-row {
+            position: absolute;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,51,102,0.9);
+            padding: 8px 16px;
+            border-radius: 25px;
+            z-index: 1000;
+          }
+          .radar-toggle {
+            background: transparent;
+            border: 2px solid #4fc3f7;
+            color: #4fc3f7;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .radar-toggle.active { background: #4fc3f7; color: #003366; }
+          .time-display {
+            color: #fff;
+            font-size: 11px;
+            font-weight: 500;
+          }
+          .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            z-index: 1000;
+            overflow: hidden;
+          }
+          .zoom-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border: none;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #003366;
+          }
+          .zoom-btn:first-child { border-bottom: 1px solid #ddd; }
+          .zoom-btn:active { background: #e0e0e0; }
+          .leaflet-control-zoom { display: none !important; }
+          .alert-count-badge {
+            background: #ff5722;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+          }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoomInBtn">+</button>
+          <button class="zoom-btn" id="zoomOutBtn">−</button>
+        </div>
+        <div class="controls-row">
+          <button class="radar-toggle active" id="radarBtn">☁️ Radar</button>
+          <span class="time-display" id="timeDisplay">Loading...</span>
+        </div>
+        <div class="legend-box">
+          <div class="legend-title">⚠️ ACTIVE WEATHER ALERTS</div>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #8b008b;"></div>
+              <span class="legend-text">Winter Storm</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #00bfff;"></div>
+              <span class="legend-text">Extreme Cold</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #4169e1;"></div>
+              <span class="legend-text">Wind Chill</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #00ff00;"></div>
+              <span class="legend-text">Flood</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ff4500;"></div>
+              <span class="legend-text">Tornado</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #ff8c00;"></div>
+              <span class="legend-text">Severe Storm</span>
+            </div>
+          </div>
+        </div>
+        <script>
+          var map = L.map('map', { 
+            zoomControl: false,
+            attributionControl: false,
+            minZoom: 3,
+            maxZoom: 12
+          }).setView([${usLat}, ${usLon}], 4);
+          
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+          }).addTo(map);
+          
+          var alertsLayer = L.layerGroup().addTo(map);
+          var radarLayer = null;
+          var showRadar = true;
+          
+          function getAlertColor(event) {
+            event = event.toLowerCase();
+            if (event.includes('winter storm warning')) return '#ff69b4';
+            if (event.includes('winter storm watch')) return '#4682b4';
+            if (event.includes('winter weather')) return '#7b68ee';
+            if (event.includes('blizzard')) return '#ff4500';
+            if (event.includes('ice storm')) return '#8b008b';
+            if (event.includes('extreme cold')) return '#00bfff';
+            if (event.includes('wind chill warning')) return '#b0c4de';
+            if (event.includes('wind chill watch')) return '#5f9ea0';
+            if (event.includes('wind chill advisory')) return '#afeeee';
+            if (event.includes('freeze warning')) return '#483d8b';
+            if (event.includes('freeze watch')) return '#00ced1';
+            if (event.includes('frost')) return '#6495ed';
+            if (event.includes('snow')) return '#4169e1';
+            if (event.includes('ice') || event.includes('freezing')) return '#8a2be2';
+            if (event.includes('tornado warning')) return '#ff0000';
+            if (event.includes('tornado watch')) return '#ffff00';
+            if (event.includes('severe thunderstorm warning')) return '#ff8c00';
+            if (event.includes('severe thunderstorm watch')) return '#db7093';
+            if (event.includes('flash flood warning')) return '#8b0000';
+            if (event.includes('flash flood watch')) return '#2e8b57';
+            if (event.includes('flood warning')) return '#00ff00';
+            if (event.includes('flood watch')) return '#2e8b57';
+            if (event.includes('flood advisory')) return '#00ff7f';
+            if (event.includes('high wind warning')) return '#daa520';
+            if (event.includes('high wind watch')) return '#b8860b';
+            if (event.includes('wind advisory')) return '#d2b48c';
+            if (event.includes('excessive heat')) return '#c71585';
+            if (event.includes('heat advisory')) return '#ff7f50';
+            if (event.includes('hurricane')) return '#dc143c';
+            if (event.includes('tropical storm')) return '#b22222';
+            return '#808080';
+          }
+          
+          fetch('https://api.weather.gov/alerts/active?status=actual&message_type=alert')
+            .then(r => r.json())
+            .then(data => {
+              var count = 0;
+              data.features.forEach(function(alert) {
+                if (alert.geometry && alert.geometry.coordinates) {
+                  var coords = alert.geometry.coordinates;
+                  var eventName = alert.properties.event || 'Weather Alert';
+                  var color = getAlertColor(eventName);
+                  
+                  if (alert.geometry.type === 'Polygon') {
+                    var latlngs = coords[0].map(function(c) { return [c[1], c[0]]; });
+                    L.polygon(latlngs, {
+                      color: color,
+                      fillColor: color,
+                      fillOpacity: 0.5,
+                      weight: 2
+                    }).bindPopup('<b style="color:' + color + '">' + eventName + '</b><br><small>' + (alert.properties.headline || '') + '</small>').addTo(alertsLayer);
+                    count++;
+                  } else if (alert.geometry.type === 'MultiPolygon') {
+                    coords.forEach(function(poly) {
+                      var latlngs = poly[0].map(function(c) { return [c[1], c[0]]; });
+                      L.polygon(latlngs, {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.5,
+                        weight: 2
+                      }).bindPopup('<b style="color:' + color + '">' + eventName + '</b><br><small>' + (alert.properties.headline || '') + '</small>').addTo(alertsLayer);
+                      count++;
+                    });
+                  }
+                }
+              });
+              
+              if (count > 0) {
+                document.getElementById('timeDisplay').innerHTML = '<span class="alert-count-badge">' + count + '</span> alerts';
+              } else {
+                document.getElementById('timeDisplay').textContent = 'No active alerts';
+              }
+            })
+            .catch(function(err) {
+              document.getElementById('timeDisplay').textContent = 'Alerts unavailable';
+            });
+          
+          fetch('https://api.rainviewer.com/public/weather-maps.json')
+            .then(r => r.json())
+            .then(data => {
+              var frames = data.radar.past;
+              if (frames.length > 0) {
+                var latest = frames[frames.length - 1];
+                radarLayer = L.tileLayer(
+                  'https://tilecache.rainviewer.com' + latest.path + '/512/{z}/{x}/{y}/2/1_1.png',
+                  { opacity: 0.4, zIndex: 50, tileSize: 512, zoomOffset: -1 }
+                );
+                if (showRadar) radarLayer.addTo(map);
+              }
+            });
+          
+          document.getElementById('radarBtn').onclick = function() {
+            showRadar = !showRadar;
+            this.classList.toggle('active', showRadar);
+            if (showRadar && radarLayer) {
+              radarLayer.addTo(map);
+            } else if (radarLayer) {
+              map.removeLayer(radarLayer);
+            }
+          };
+          
+          document.getElementById('zoomInBtn').onclick = function() { map.zoomIn(); };
+          document.getElementById('zoomOutBtn').onclick = function() { map.zoomOut(); };
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.mapBackground}>
