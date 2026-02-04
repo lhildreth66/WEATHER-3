@@ -11,10 +11,9 @@ import uuid
 from datetime import datetime, timedelta
 import httpx
 import polyline
-from openai import AsyncOpenAI
 import asyncio
 import math
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import google.generativeai as genai
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -26,13 +25,11 @@ db = client[os.environ['DB_NAME']]
 
 # API Keys
 MAPBOX_ACCESS_TOKEN = os.environ.get('MAPBOX_ACCESS_TOKEN', '')
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
 
-# Configure OpenAI client with Emergent LLM key
-openai_client = AsyncOpenAI(
-    api_key=EMERGENT_LLM_KEY,
-    base_url="https://api.emergentagi.com/v1"
-)
+# Configure Google Gemini
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
 
 # NOAA API Headers
 NOAA_USER_AGENT = os.environ.get('NOAA_USER_AGENT', 'Routecast/1.0 (contact@routecast.app)')
