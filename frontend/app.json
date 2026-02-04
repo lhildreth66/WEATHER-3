@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "weather-redo",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "description": "Weather REDO: real-time forecasts and alerts along your route.",
     "splash": {
       "image": "./assets/images/splash-image.png",
