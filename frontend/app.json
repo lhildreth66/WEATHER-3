@@ -9,13 +9,11 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "description": "Weather REDO: real-time forecasts and alerts along your route.",
-
     "splash": {
       "image": "./assets/images/splash-image.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.promedtrans01.weatherredo",
@@ -23,18 +21,18 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Routecast needs your location to show weather along your route.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Routecast needs your location to provide weather updates during your trip.",
-        "UIBackgroundModes": [
-          "location",
-          "fetch",
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
       }
     },
-
     "android": {
       "package": "com.promedtrans01.weatherredo",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "splash": {
+        "image": "./assets/images/splash-image.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
@@ -51,13 +49,11 @@
         "ACCESS_NETWORK_STATE"
       ]
     },
-
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -79,18 +75,15 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true
     },
-
     "extra": {
       "router": {},
       "eas": {
         "projectId": "0bd77d06-d5af-40da-83f9-19f7aa1599a6"
       }
     },
-
     "owner": "promedtrans01"
   }
 }
