@@ -492,16 +492,13 @@ export default function HomeScreen() {
           }
           .toggle-btn {
             background: transparent;
-            border: 2px solid #4fc3f7;
+            border: 1px solid #4fc3f7;
             color: #4fc3f7;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
           }
           .toggle-btn.active { background: #4fc3f7; color: #003366; }
           .time-display {
