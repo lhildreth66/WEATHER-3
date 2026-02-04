@@ -544,7 +544,6 @@ export default function HomeScreen() {
           <button class="zoom-btn" id="zoomOutBtn">−</button>
         </div>
         <div class="controls-row">
-          <button class="toggle-btn active" id="alertsBtn">⚠️ Alerts</button>
           <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
           <span class="time-display" id="timeDisplay">Loading...</span>
         </div>
