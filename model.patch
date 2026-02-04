@@ -1,197 +1,223 @@
+diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
+index 64c25f1..e7161d1 100644
+--- a/frontend/app/route.tsx
++++ b/frontend/app/route.tsx
+@@ -270,12 +270,12 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+             <span class="legend-text">Winter Storm</span>
+           </div>
+           <div class="legend-item">
+-            <div class="legend-color" style="background: #00ffff;"></div>
+-            <span class="legend-text">Extreme Cold</span>
++            <div class="legend-color" style="background: #9400d3;"></div>
++            <span class="legend-text">Special Statement</span>
+           </div>
+           <div class="legend-item">
+-            <div class="legend-color" style="background: #b0c4de;"></div>
+-            <span class="legend-text">Wind Chill</span>
++            <div class="legend-color" style="background: #00ffff;"></div>
++            <span class="legend-text">Extreme Cold</span>
+           </div>
+           <div class="legend-item">
+             <div class="legend-color" style="background: #00ff00;"></div>
 diff --git a/model.patch b/model.patch
-index 0df0a8b..e69de29 100644
+index abc77da..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,192 +0,0 @@
--diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
--index 12fb5dc..64c25f1 100644
----- a/frontend/app/route.tsx
--+++ b/frontend/app/route.tsx
--@@ -332,8 +332,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
--               if (showRadar) radarLayer.addTo(map);
--             }
--           });
---        
---        
--         // Toggle radar layer
--         document.getElementById('radarBtn').onclick = function() {
--           showRadar = !showRadar;
+@@ -1,197 +0,0 @@
 -diff --git a/model.patch b/model.patch
--index d091b2b..e69de29 100644
+-index 0df0a8b..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,174 +0,0 @@
+-@@ -1,192 +0,0 @@
 --diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
---index 9607bac..12fb5dc 100644
+--index 12fb5dc..64c25f1 100644
 ----- a/frontend/app/route.tsx
 --+++ b/frontend/app/route.tsx
---@@ -200,16 +200,13 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
---         }
---         .toggle-btn {
---           background: transparent;
----          border: 2px solid #4fc3f7;
---+          border: 1px solid #4fc3f7;
---           color: #4fc3f7;
----          padding: 6px 12px;
----          border-radius: 20px;
----          font-size: 12px;
---+          padding: 4px 8px;
---+          border-radius: 12px;
---+          font-size: 10px;
---           font-weight: 600;
---           cursor: pointer;
----          display: flex;
----          align-items: center;
----          gap: 6px;
---         }
---         .toggle-btn.active { background: #4fc3f7; color: #003366; }
---         .time-display {
+--@@ -332,8 +332,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+--               if (showRadar) radarLayer.addTo(map);
+--             }
+--           });
+---        
+---        
+--         // Toggle radar layer
+--         document.getElementById('radarBtn').onclick = function() {
+--           showRadar = !showRadar;
 --diff --git a/model.patch b/model.patch
---index 5c86ee4..e69de29 100644
+--index d091b2b..e69de29 100644
 ----- a/model.patch
 --+++ b/model.patch
---@@ -1,144 +0,0 @@
+--@@ -1,174 +0,0 @@
 ---diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
----index 574fd65..9607bac 100644
+---index 9607bac..12fb5dc 100644
 ------ a/frontend/app/route.tsx
 ---+++ b/frontend/app/route.tsx
----@@ -262,7 +262,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
----         <button class="zoom-btn" id="zoomOutBtn">−</button>
----       </div>
----       <div class="controls-row">
-----        <button class="toggle-btn active" id="alertsBtn">⚠️ Alerts</button>
----         <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
----         <span class="time-display" id="timeDisplay">Loading...</span>
----       </div>
----@@ -319,7 +318,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
----         
----         var radarLayer = null;
----         var showRadar = true;
-----        var showAlerts = true;
----         
----         document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
----         
----@@ -338,16 +336,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
----             }
----           });
----         
-----        // Toggle alerts layer
-----        document.getElementById('alertsBtn').onclick = function() {
-----          showAlerts = !showAlerts;
-----          this.classList.toggle('active', showAlerts);
-----          if (showAlerts) {
-----            alertsLayer.addTo(map);
-----          } else {
-----            map.removeLayer(alertsLayer);
-----          }
-----        };
----         
----         // Toggle radar layer
----         document.getElementById('radarBtn').onclick = function() {
+---@@ -200,16 +200,13 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+---         }
+---         .toggle-btn {
+---           background: transparent;
+----          border: 2px solid #4fc3f7;
+---+          border: 1px solid #4fc3f7;
+---           color: #4fc3f7;
+----          padding: 6px 12px;
+----          border-radius: 20px;
+----          font-size: 12px;
+---+          padding: 4px 8px;
+---+          border-radius: 12px;
+---+          font-size: 10px;
+---           font-weight: 600;
+---           cursor: pointer;
+----          display: flex;
+----          align-items: center;
+----          gap: 6px;
+---         }
+---         .toggle-btn.active { background: #4fc3f7; color: #003366; }
+---         .time-display {
 ---diff --git a/model.patch b/model.patch
----index 4897b09..e69de29 100644
+---index 5c86ee4..e69de29 100644
 ------ a/model.patch
 ---+++ b/model.patch
----@@ -1,102 +0,0 @@
+---@@ -1,144 +0,0 @@
 ----diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
-----index d3bc83f..574fd65 100644
+----index 574fd65..9607bac 100644
 ------- a/frontend/app/route.tsx
 ----+++ b/frontend/app/route.tsx
-----@@ -308,12 +308,12 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
-----           maxZoom: 19
-----         }).addTo(map);
+----@@ -262,7 +262,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+----         <button class="zoom-btn" id="zoomOutBtn">−</button>
+----       </div>
+----       <div class="controls-row">
+-----        <button class="toggle-btn active" id="alertsBtn">⚠️ Alerts</button>
+----         <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
+----         <span class="time-display" id="timeDisplay">Loading...</span>
+----       </div>
+----@@ -319,7 +318,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
 ----         
------        // IEM WMS Layer - using direct URL construction for better compatibility
------        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
------          layers: 'warnings_c,watches_c',
-----+        // IEM WMS Layer - using correct layer names and version
-----+        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
-----+          layers: 'warnings_c',
-----           format: 'image/png',
-----           transparent: true,
------          uppercase: true,
-----+          version: '1.3.0',
-----           opacity: 0.8
-----         }).addTo(map);
+----         var radarLayer = null;
+----         var showRadar = true;
+-----        var showAlerts = true;
 ----         
+----         document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
+----         
+----@@ -338,16 +336,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+----             }
+----           });
+----         
+-----        // Toggle alerts layer
+-----        document.getElementById('alertsBtn').onclick = function() {
+-----          showAlerts = !showAlerts;
+-----          this.classList.toggle('active', showAlerts);
+-----          if (showAlerts) {
+-----            alertsLayer.addTo(map);
+-----          } else {
+-----            map.removeLayer(alertsLayer);
+-----          }
+-----        };
+----         
+----         // Toggle radar layer
+----         document.getElementById('radarBtn').onclick = function() {
 ----diff --git a/model.patch b/model.patch
-----index 28ed63d..e69de29 100644
+----index 4897b09..e69de29 100644
 ------- a/model.patch
 ----+++ b/model.patch
-----@@ -1,76 +0,0 @@
+----@@ -1,102 +0,0 @@
+-----diff --git a/frontend/app/route.tsx b/frontend/app/route.tsx
+-----index d3bc83f..574fd65 100644
+-------- a/frontend/app/route.tsx
+-----+++ b/frontend/app/route.tsx
+-----@@ -308,12 +308,12 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
+-----           maxZoom: 19
+-----         }).addTo(map);
+-----         
+------        // IEM WMS Layer - using direct URL construction for better compatibility
+------        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
+------          layers: 'warnings_c,watches_c',
+-----+        // IEM WMS Layer - using correct layer names and version
+-----+        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
+-----+          layers: 'warnings_c',
+-----           format: 'image/png',
+-----           transparent: true,
+------          uppercase: true,
+-----+          version: '1.3.0',
+-----           opacity: 0.8
+-----         }).addTo(map);
+-----         
 -----diff --git a/model.patch b/model.patch
------index 640ed52..e69de29 100644
+-----index 28ed63d..e69de29 100644
 -------- a/model.patch
 -----+++ b/model.patch
------@@ -1,71 +0,0 @@
+-----@@ -1,76 +0,0 @@
 ------diff --git a/model.patch b/model.patch
-------index fa30f78..e69de29 100644
+------index 640ed52..e69de29 100644
 --------- a/model.patch
 ------+++ b/model.patch
-------@@ -1,66 +0,0 @@
+------@@ -1,71 +0,0 @@
 -------diff --git a/model.patch b/model.patch
--------index 4d74a88..e69de29 100644
+-------index fa30f78..e69de29 100644
 ---------- a/model.patch
 -------+++ b/model.patch
--------@@ -1,61 +0,0 @@
+-------@@ -1,66 +0,0 @@
 --------diff --git a/model.patch b/model.patch
---------index 977b0ee..e69de29 100644
+--------index 4d74a88..e69de29 100644
 ----------- a/model.patch
 --------+++ b/model.patch
---------@@ -1,56 +0,0 @@
----------diff --git a/test_result.md b/test_result.md
----------index cdeda3f..470c154 100644
------------- a/test_result.md
----------+++ b/test_result.md
----------@@ -123,11 +123,14 @@ backend:
----------     file: "/app/backend/server.py"
----------     stuck_count: 0
----------     priority: "high"
-----------    needs_retesting: true
----------+    needs_retesting: false
----------     status_history:
----------         - working: true
----------           agent: "main"
----------           comment: "POST /api/route/weather geocodes locations, gets Mapbox route, fetches NOAA weather for waypoints"
----------+        - working: true
----------+          agent: "testing"
----------+          comment: "TESTED: Route weather endpoint working correctly. Successfully tested Chicago->Detroit route with 7 waypoints. All waypoints have complete weather data (temperature, conditions, wind). NOAA weather API integration working perfectly. Route geometry and waypoint extraction working. AI summary correctly shows 'unavailable' due to expected Emergent API connection issues."
---------- 
----------   - task: "Route history endpoint"
----------     implemented: true
----------@@ -135,11 +138,14 @@ backend:
----------     file: "/app/backend/server.py"
----------     stuck_count: 0
----------     priority: "medium"
-----------    needs_retesting: true
----------+    needs_retesting: false
----------     status_history:
----------         - working: true
----------           agent: "main"
----------           comment: "GET /api/routes/history returns recent routes from MongoDB"
----------+        - working: true
----------+          agent: "testing"
----------+          comment: "TESTED: Route history endpoint working correctly. Returns proper list structure with 4 saved routes. Each route has required fields (id, origin, destination, created_at). MongoDB integration working properly."
---------- 
----------   - task: "AI weather summary"
----------     implemented: true
----------@@ -198,8 +204,7 @@ metadata:
---------- 
---------- test_plan:
----------   current_focus:
-----------    - "Route weather endpoint"
-----------    - "Route history endpoint"
----------+    - "AI weather summary"
----------   stuck_tasks:
----------     - "AI weather summary"
----------   test_all: false
----------@@ -207,4 +212,6 @@ test_plan:
---------- 
---------- agent_communication:
----------     - agent: "main"
-----------      message: "Routecast MVP implemented. Backend has route weather, history, and geocoding APIs. NOAA weather data is working. AI summary has connection issues with Emergent API endpoint - using fallback text. Frontend matches weather-tracker-25 design with dark theme and burgundy cards. Please test backend endpoints."
----------\ No newline at end of file
----------+      message: "Routecast MVP implemented. Backend has route weather, history, and geocoding APIs. NOAA weather data is working. AI summary has connection issues with Emergent API endpoint - using fallback text. Frontend matches weather-tracker-25 design with dark theme and burgundy cards. Please test backend endpoints."
----------+    - agent: "testing"
----------+      message: "BACKEND TESTING COMPLETE: All core backend endpoints working perfectly. Health check ✅, Route weather endpoint ✅ (NOAA weather data working, 7 waypoints with complete weather data), Route history ✅ (MongoDB integration working). AI summary correctly shows 'unavailable' due to expected Emergent API connection issues. All 27 test cases passed. Backend is fully functional."
----------\ No newline at end of file
+--------@@ -1,61 +0,0 @@
+---------diff --git a/model.patch b/model.patch
+---------index 977b0ee..e69de29 100644
+------------ a/model.patch
+---------+++ b/model.patch
+---------@@ -1,56 +0,0 @@
+----------diff --git a/test_result.md b/test_result.md
+----------index cdeda3f..470c154 100644
+------------- a/test_result.md
+----------+++ b/test_result.md
+----------@@ -123,11 +123,14 @@ backend:
+----------     file: "/app/backend/server.py"
+----------     stuck_count: 0
+----------     priority: "high"
+-----------    needs_retesting: true
+----------+    needs_retesting: false
+----------     status_history:
+----------         - working: true
+----------           agent: "main"
+----------           comment: "POST /api/route/weather geocodes locations, gets Mapbox route, fetches NOAA weather for waypoints"
+----------+        - working: true
+----------+          agent: "testing"
+----------+          comment: "TESTED: Route weather endpoint working correctly. Successfully tested Chicago->Detroit route with 7 waypoints. All waypoints have complete weather data (temperature, conditions, wind). NOAA weather API integration working perfectly. Route geometry and waypoint extraction working. AI summary correctly shows 'unavailable' due to expected Emergent API connection issues."
+---------- 
+----------   - task: "Route history endpoint"
+----------     implemented: true
+----------@@ -135,11 +138,14 @@ backend:
+----------     file: "/app/backend/server.py"
+----------     stuck_count: 0
+----------     priority: "medium"
+-----------    needs_retesting: true
+----------+    needs_retesting: false
+----------     status_history:
+----------         - working: true
+----------           agent: "main"
+----------           comment: "GET /api/routes/history returns recent routes from MongoDB"
+----------+        - working: true
+----------+          agent: "testing"
+----------+          comment: "TESTED: Route history endpoint working correctly. Returns proper list structure with 4 saved routes. Each route has required fields (id, origin, destination, created_at). MongoDB integration working properly."
+---------- 
+----------   - task: "AI weather summary"
+----------     implemented: true
+----------@@ -198,8 +204,7 @@ metadata:
+---------- 
+---------- test_plan:
+----------   current_focus:
+-----------    - "Route weather endpoint"
+-----------    - "Route history endpoint"
+----------+    - "AI weather summary"
+----------   stuck_tasks:
+----------     - "AI weather summary"
+----------   test_all: false
+----------@@ -207,4 +212,6 @@ test_plan:
+---------- 
+---------- agent_communication:
+----------     - agent: "main"
+-----------      message: "Routecast MVP implemented. Backend has route weather, history, and geocoding APIs. NOAA weather data is working. AI summary has connection issues with Emergent API endpoint - using fallback text. Frontend matches weather-tracker-25 design with dark theme and burgundy cards. Please test backend endpoints."
+----------\ No newline at end of file
+----------+      message: "Routecast MVP implemented. Backend has route weather, history, and geocoding APIs. NOAA weather data is working. AI summary has connection issues with Emergent API endpoint - using fallback text. Frontend matches weather-tracker-25 design with dark theme and burgundy cards. Please test backend endpoints."
+----------+    - agent: "testing"
+----------+      message: "BACKEND TESTING COMPLETE: All core backend endpoints working perfectly. Health check ✅, Route weather endpoint ✅ (NOAA weather data working, 7 waypoints with complete weather data), Route history ✅ (MongoDB integration working). AI summary correctly shows 'unavailable' due to expected Emergent API connection issues. All 27 test cases passed. Backend is fully functional."
+----------\ No newline at end of file
