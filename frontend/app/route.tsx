@@ -308,8 +308,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         var radarLayer = null;
         var showRadar = true;
         
-        document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
-        
         // Load radar overlay
         fetch('https://api.rainviewer.com/public/weather-maps.json')
           .then(r => r.json())
