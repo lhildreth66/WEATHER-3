@@ -422,7 +422,7 @@ export default function HomeScreen() {
     rest: 'bed',
   };
 
-  // Generate radar map HTML using RainViewer API and NWS alerts
+  // Generate radar map HTML using IEM WMS layer for NWS Watch/Warning/Advisory colored zones
   const generateRadarMapHtml = (): string => {
     // Default to center of US
     const usLat = 39.8283;
@@ -490,7 +490,7 @@ export default function HomeScreen() {
             border-radius: 25px;
             z-index: 1000;
           }
-          .radar-toggle {
+          .toggle-btn {
             background: transparent;
             border: 2px solid #4fc3f7;
             color: #4fc3f7;
@@ -503,7 +503,7 @@ export default function HomeScreen() {
             align-items: center;
             gap: 6px;
           }
-          .radar-toggle.active { background: #4fc3f7; color: #003366; }
+          .toggle-btn.active { background: #4fc3f7; color: #003366; }
           .time-display {
             color: #fff;
             font-size: 11px;
@@ -535,14 +535,6 @@ export default function HomeScreen() {
           .zoom-btn:first-child { border-bottom: 1px solid #ddd; }
           .zoom-btn:active { background: #e0e0e0; }
           .leaflet-control-zoom { display: none !important; }
-          .alert-count-badge {
-            background: #ff5722;
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-          }
         </style>
       </head>
       <body>
@@ -552,22 +544,23 @@ export default function HomeScreen() {
           <button class="zoom-btn" id="zoomOutBtn">−</button>
         </div>
         <div class="controls-row">
-          <button class="radar-toggle active" id="radarBtn">☁️ Radar</button>
+          <button class="toggle-btn active" id="alertsBtn">⚠️ Alerts</button>
+          <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
           <span class="time-display" id="timeDisplay">Loading...</span>
         </div>
         <div class="legend-box">
-          <div class="legend-title">⚠️ ACTIVE WEATHER ALERTS</div>
+          <div class="legend-title">⚠️ NWS WATCH / WARNING / ADVISORY</div>
           <div class="legend-grid">
             <div class="legend-item">
-              <div class="legend-color" style="background: #8b008b;"></div>
+              <div class="legend-color" style="background: #ff69b4;"></div>
               <span class="legend-text">Winter Storm</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #00bfff;"></div>
+              <div class="legend-color" style="background: #00ffff;"></div>
               <span class="legend-text">Extreme Cold</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #4169e1;"></div>
+              <div class="legend-color" style="background: #b0c4de;"></div>
               <span class="legend-text">Wind Chill</span>
             </div>
             <div class="legend-item">
@@ -575,12 +568,12 @@ export default function HomeScreen() {
               <span class="legend-text">Flood</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #ff4500;"></div>
+              <div class="legend-color" style="background: #ff0000;"></div>
               <span class="legend-text">Tornado</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #ff8c00;"></div>
-              <span class="legend-text">Severe Storm</span>
+              <div class="legend-color" style="background: #ffa500;"></div>
+              <span class="legend-text">Severe T-Storm</span>
             </div>
           </div>
         </div>
@@ -592,93 +585,25 @@ export default function HomeScreen() {
             maxZoom: 12
           }).setView([${usLat}, ${usLon}], 4);
           
+          // Light base map
           L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19
           }).addTo(map);
           
-          var alertsLayer = L.layerGroup().addTo(map);
+          // IEM Watch/Warning/Advisory WMS Layer - THIS SHOWS THE COLORED COUNTY BOXES!
+          var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
+            layers: 'warnings_c,watches_c,advisories_c',
+            format: 'image/png',
+            transparent: true,
+            opacity: 0.7,
+            zIndex: 100
+          }).addTo(map);
+          
           var radarLayer = null;
           var showRadar = true;
+          var showAlerts = true;
           
-          function getAlertColor(event) {
-            event = event.toLowerCase();
-            if (event.includes('winter storm warning')) return '#ff69b4';
-            if (event.includes('winter storm watch')) return '#4682b4';
-            if (event.includes('winter weather')) return '#7b68ee';
-            if (event.includes('blizzard')) return '#ff4500';
-            if (event.includes('ice storm')) return '#8b008b';
-            if (event.includes('extreme cold')) return '#00bfff';
-            if (event.includes('wind chill warning')) return '#b0c4de';
-            if (event.includes('wind chill watch')) return '#5f9ea0';
-            if (event.includes('wind chill advisory')) return '#afeeee';
-            if (event.includes('freeze warning')) return '#483d8b';
-            if (event.includes('freeze watch')) return '#00ced1';
-            if (event.includes('frost')) return '#6495ed';
-            if (event.includes('snow')) return '#4169e1';
-            if (event.includes('ice') || event.includes('freezing')) return '#8a2be2';
-            if (event.includes('tornado warning')) return '#ff0000';
-            if (event.includes('tornado watch')) return '#ffff00';
-            if (event.includes('severe thunderstorm warning')) return '#ff8c00';
-            if (event.includes('severe thunderstorm watch')) return '#db7093';
-            if (event.includes('flash flood warning')) return '#8b0000';
-            if (event.includes('flash flood watch')) return '#2e8b57';
-            if (event.includes('flood warning')) return '#00ff00';
-            if (event.includes('flood watch')) return '#2e8b57';
-            if (event.includes('flood advisory')) return '#00ff7f';
-            if (event.includes('high wind warning')) return '#daa520';
-            if (event.includes('high wind watch')) return '#b8860b';
-            if (event.includes('wind advisory')) return '#d2b48c';
-            if (event.includes('excessive heat')) return '#c71585';
-            if (event.includes('heat advisory')) return '#ff7f50';
-            if (event.includes('hurricane')) return '#dc143c';
-            if (event.includes('tropical storm')) return '#b22222';
-            return '#808080';
-          }
-          
-          fetch('https://api.weather.gov/alerts/active?status=actual&message_type=alert')
-            .then(r => r.json())
-            .then(data => {
-              var count = 0;
-              data.features.forEach(function(alert) {
-                if (alert.geometry && alert.geometry.coordinates) {
-                  var coords = alert.geometry.coordinates;
-                  var eventName = alert.properties.event || 'Weather Alert';
-                  var color = getAlertColor(eventName);
-                  
-                  if (alert.geometry.type === 'Polygon') {
-                    var latlngs = coords[0].map(function(c) { return [c[1], c[0]]; });
-                    L.polygon(latlngs, {
-                      color: color,
-                      fillColor: color,
-                      fillOpacity: 0.5,
-                      weight: 2
-                    }).bindPopup('<b style="color:' + color + '">' + eventName + '</b><br><small>' + (alert.properties.headline || '') + '</small>').addTo(alertsLayer);
-                    count++;
-                  } else if (alert.geometry.type === 'MultiPolygon') {
-                    coords.forEach(function(poly) {
-                      var latlngs = poly[0].map(function(c) { return [c[1], c[0]]; });
-                      L.polygon(latlngs, {
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.5,
-                        weight: 2
-                      }).bindPopup('<b style="color:' + color + '">' + eventName + '</b><br><small>' + (alert.properties.headline || '') + '</small>').addTo(alertsLayer);
-                      count++;
-                    });
-                  }
-                }
-              });
-              
-              if (count > 0) {
-                document.getElementById('timeDisplay').innerHTML = '<span class="alert-count-badge">' + count + '</span> alerts';
-              } else {
-                document.getElementById('timeDisplay').textContent = 'No active alerts';
-              }
-            })
-            .catch(function(err) {
-              document.getElementById('timeDisplay').textContent = 'Alerts unavailable';
-            });
-          
+          // Load radar overlay
           fetch('https://api.rainviewer.com/public/weather-maps.json')
             .then(r => r.json())
             .then(data => {
@@ -687,12 +612,31 @@ export default function HomeScreen() {
                 var latest = frames[frames.length - 1];
                 radarLayer = L.tileLayer(
                   'https://tilecache.rainviewer.com' + latest.path + '/512/{z}/{x}/{y}/2/1_1.png',
-                  { opacity: 0.4, zIndex: 50, tileSize: 512, zoomOffset: -1 }
+                  { opacity: 0.5, zIndex: 50, tileSize: 512, zoomOffset: -1 }
                 );
                 if (showRadar) radarLayer.addTo(map);
+                
+                // Update timestamp
+                var date = new Date(latest.time * 1000);
+                document.getElementById('timeDisplay').textContent = 'Updated: ' + date.toLocaleTimeString();
               }
+            })
+            .catch(function() {
+              document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
             });
           
+          // Toggle alerts layer
+          document.getElementById('alertsBtn').onclick = function() {
+            showAlerts = !showAlerts;
+            this.classList.toggle('active', showAlerts);
+            if (showAlerts) {
+              alertsLayer.addTo(map);
+            } else {
+              map.removeLayer(alertsLayer);
+            }
+          };
+          
+          // Toggle radar layer
           document.getElementById('radarBtn').onclick = function() {
             showRadar = !showRadar;
             this.classList.toggle('active', showRadar);
