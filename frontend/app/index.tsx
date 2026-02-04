@@ -1137,6 +1137,47 @@ export default function HomeScreen() {
         </Modal>
       )}
 
+      {/* Radar Map Modal */}
+      {showRadarMap && (
+        <Modal transparent animationType="slide">
+          <View style={styles.radarModalOverlay}>
+            <View style={styles.radarModalContent}>
+              <View style={styles.radarHeader}>
+                <View style={styles.radarHeaderLeft}>
+                  <Ionicons name="radio-outline" size={24} color="#22c55e" />
+                  <Text style={styles.radarTitle}>Live Weather Radar</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowRadarMap(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              {Platform.OS === 'web' ? (
+                <iframe
+                  srcDoc={generateRadarMapHtml()}
+                  style={{ flex: 1, border: 'none', width: '100%', height: '100%', touchAction: 'none' }}
+                  allowFullScreen
+                />
+              ) : (
+                <WebView
+                  source={{ html: generateRadarMapHtml() }}
+                  style={styles.radarWebView}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  scalesPageToFit={true}
+                  scrollEnabled={false}
+                  bounces={false}
+                  overScrollMode="never"
+                  nestedScrollEnabled={false}
+                  setBuiltInZoomControls={false}
+                  setDisplayZoomControls={false}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* Add Stop Modal */}
       {showAddStop && (
         <Modal transparent animationType="slide">
