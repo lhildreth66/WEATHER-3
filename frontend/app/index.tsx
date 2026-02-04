@@ -12,6 +12,7 @@ import {
   Keyboard,
   Switch,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +21,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { WebView } from 'react-native-webview';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
