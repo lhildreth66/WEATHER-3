@@ -243,10 +243,20 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         .zoom-btn:first-child { border-bottom: 1px solid #ddd; }
         .zoom-btn:active { background: #e0e0e0; }
         .leaflet-control-zoom { display: none !important; }
+        #alertOverlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 120px;
+          pointer-events: none;
+          z-index: 500;
+        }
       </style>
     </head>
     <body>
       <div id="map"></div>
+      <img id="alertOverlay" src="" style="display:none;" />
       <div class="zoom-controls">
         <button class="zoom-btn" id="zoomInBtn">+</button>
         <button class="zoom-btn" id="zoomOutBtn">−</button>
@@ -298,13 +308,13 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           maxZoom: 19
         }).addTo(map);
         
-        // IEM WMS Layer using standard EPSG:3857 (Web Mercator)
-        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
-          layers: 'warnings_c',
+        // IEM WMS Layer - using direct URL construction for better compatibility
+        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
+          layers: 'warnings_c,watches_c',
           format: 'image/png',
           transparent: true,
-          version: '1.3.0',
-          opacity: 0.75
+          uppercase: true,
+          opacity: 0.8
         }).addTo(map);
         
         var radarLayer = null;
@@ -352,6 +362,14 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         
         document.getElementById('zoomInBtn').onclick = function() { map.zoomIn(); };
         document.getElementById('zoomOutBtn').onclick = function() { map.zoomOut(); };
+        
+        // Debug: Log when tiles load
+        alertsLayer.on('tileload', function(e) {
+          console.log('Alert tile loaded:', e.url);
+        });
+        alertsLayer.on('tileerror', function(e) {
+          console.log('Alert tile error:', e.error);
+        });
       </script>
     </body>
     </html>
