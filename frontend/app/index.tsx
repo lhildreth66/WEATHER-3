@@ -479,24 +479,17 @@ export default function HomeScreen() {
           }
           .controls-row {
             position: absolute;
-            bottom: 130px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(0,51,102,0.9);
-            padding: 8px 16px;
-            border-radius: 25px;
+            bottom: 125px;
+            left: 10px;
             z-index: 1000;
           }
           .toggle-btn {
-            background: transparent;
+            background: rgba(0,51,102,0.9);
             border: 1px solid #4fc3f7;
             color: #4fc3f7;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 8px;
             font-weight: 600;
             cursor: pointer;
           }
