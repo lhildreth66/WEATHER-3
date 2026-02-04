@@ -361,43 +361,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
     </body>
     </html>
   `;
-          border-radius: 12px;
-          font-size: 11px;
-          font-weight: 700;
-        }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <div class="zoom-controls">
-        <button class="zoom-btn" id="zoomInBtn">+</button>
-        <button class="zoom-btn" id="zoomOutBtn">−</button>
-      </div>
-      <div class="controls-row">
-        <button class="radar-toggle active" id="radarBtn">☁️ Radar</button>
-        <span class="time-display" id="timeDisplay">Loading...</span>
-      </div>
-      <div class="legend-box">
-        <div class="legend-title">⚠️ ACTIVE WEATHER ALERTS</div>
-        <div class="legend-grid">
-          <div class="legend-item">
-            <div class="legend-color" style="background: #8b008b;"></div>
-            <span class="legend-text">Winter Storm</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #00bfff;"></div>
-            <span class="legend-text">Extreme Cold</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #4169e1;"></div>
-            <span class="legend-text">Wind Chill</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #00ff00;"></div>
-            <span class="legend-text">Flood</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #ff4500;"></div>
+};
             <span class="legend-text">Tornado</span>
           </div>
           <div class="legend-item">
