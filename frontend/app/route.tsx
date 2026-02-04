@@ -253,7 +253,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
       </div>
       <div class="controls-row">
         <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
-        <span class="time-display" id="timeDisplay">Loading...</span>
       </div>
       <div class="legend-box">
         <div class="legend-title">⚠️ NWS WATCH / WARNING / ADVISORY</div>
