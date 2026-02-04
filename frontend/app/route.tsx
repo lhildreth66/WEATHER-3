@@ -332,8 +332,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
               if (showRadar) radarLayer.addTo(map);
             }
           });
-        
-        
         // Toggle radar layer
         document.getElementById('radarBtn').onclick = function() {
           showRadar = !showRadar;
