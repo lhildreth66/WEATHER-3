@@ -131,7 +131,7 @@ const getManeuverIcon = (maneuver: string): string => {
   return icons[maneuver] || 'arrow-forward';
 };
 
-// Generate radar map HTML using RainViewer API and IEM Watch/Warning/Advisory layer
+// Generate radar map HTML using IEM WMS layer for NWS Watch/Warning/Advisory colored zones
 const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
   const usLat = Math.max(25, Math.min(48, centerLat));
   const usLon = Math.max(-124, Math.min(-68, centerLon));
@@ -298,18 +298,22 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           maxZoom: 19
         }).addTo(map);
         
-        // IEM Watch/Warning/Advisory WMS Layer - THIS SHOWS THE COLORED COUNTY BOXES!
-        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
-          layers: 'warnings_c,watches_c,advisories_c',
+        // IEM Watch/Warning/Advisory WMS Layer with correct parameters
+        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi?', {
+          layers: 'warnings_c,watches_c',
           format: 'image/png',
           transparent: true,
-          opacity: 0.7,
+          version: '1.1.1',
+          crs: L.CRS.EPSG4326,
+          opacity: 0.8,
           zIndex: 100
         }).addTo(map);
         
         var radarLayer = null;
         var showRadar = true;
         var showAlerts = true;
+        
+        document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
         
         // Load radar overlay
         fetch('https://api.rainviewer.com/public/weather-maps.json')
@@ -323,14 +327,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
                 { opacity: 0.5, zIndex: 50, tileSize: 512, zoomOffset: -1 }
               );
               if (showRadar) radarLayer.addTo(map);
-              
-              // Update timestamp
-              var date = new Date(latest.time * 1000);
-              document.getElementById('timeDisplay').textContent = 'Updated: ' + date.toLocaleTimeString();
             }
-          })
-          .catch(function() {
-            document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
           });
         
         // Toggle alerts layer
