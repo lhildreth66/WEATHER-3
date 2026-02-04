@@ -1640,11 +1640,14 @@ async def autocomplete_location(query: str, limit: int = 5):
 async def driver_chat(request: ChatMessage):
     """AI-powered chat for drivers to ask questions about weather, routes, and driving."""
     try:
-        # Initialize the chat with Emergent LLM
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"driver-{uuid.uuid4().hex[:8]}",
-            system_message="""You are Routecast AI, a helpful driving assistant that helps drivers with:
+        if not GOOGLE_API_KEY:
+            return ChatResponse(
+                response="AI chat is not configured. Please set GOOGLE_API_KEY in environment variables.",
+                suggestions=["Check road conditions", "View weather alerts"]
+            )
+        
+        # Build the prompt
+        system_message = """You are Routecast AI, a helpful driving assistant that helps drivers with:
 - Weather and road condition questions
 - Safe driving tips based on weather
 - Route planning advice
@@ -1655,20 +1658,21 @@ async def driver_chat(request: ChatMessage):
 Keep responses concise (2-3 sentences max) and actionable. Use emojis sparingly.
 If asked about specific locations, provide general advice since you don't have real-time data in this chat.
 Always prioritize safety in your recommendations."""
-        )
         
-        # Use Gemini Flash for fast responses
-        chat.with_model("gemini", "gemini-2.5-flash")
-        
-        # Build the user message with optional route context
         message_text = request.message
         if request.route_context:
             message_text = f"[Route context: {request.route_context}]\n\nUser question: {request.message}"
         
-        user_message = UserMessage(text=message_text)
+        full_prompt = f"{system_message}\n\nUser: {message_text}"
         
-        # Get response
-        response = await chat.send_message(user_message)
+        # Use Google Gemini
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = await asyncio.to_thread(
+            model.generate_content,
+            full_prompt
+        )
+        
+        response_text = response.text if response.text else "I'm having trouble responding right now."
         
         # Generate quick suggestions based on the question
         suggestions = []
@@ -1688,7 +1692,7 @@ Always prioritize safety in your recommendations."""
             suggestions = ["Check road conditions", "Safest time to drive", "Packing tips"]
         
         return ChatResponse(
-            response=response,
+            response=response_text,
             suggestions=suggestions[:3]
         )
         
