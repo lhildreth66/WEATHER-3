@@ -337,16 +337,6 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
             }
           });
         
-        // Toggle alerts layer
-        document.getElementById('alertsBtn').onclick = function() {
-          showAlerts = !showAlerts;
-          this.classList.toggle('active', showAlerts);
-          if (showAlerts) {
-            alertsLayer.addTo(map);
-          } else {
-            map.removeLayer(alertsLayer);
-          }
-        };
         
         // Toggle radar layer
         document.getElementById('radarBtn').onclick = function() {
