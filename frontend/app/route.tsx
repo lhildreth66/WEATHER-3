@@ -131,7 +131,7 @@ const getManeuverIcon = (maneuver: string): string => {
   return icons[maneuver] || 'arrow-forward';
 };
 
-// Generate radar map HTML using RainViewer API (free weather radar)
+// Generate radar map HTML using RainViewer API and IEM Watch/Warning/Advisory layer
 const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
   const usLat = Math.max(25, Math.min(48, centerLat));
   const usLon = Math.max(-124, Math.min(-68, centerLon));
@@ -198,7 +198,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           border-radius: 25px;
           z-index: 1000;
         }
-        .radar-toggle {
+        .toggle-btn {
           background: transparent;
           border: 2px solid #4fc3f7;
           color: #4fc3f7;
@@ -211,7 +211,7 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
           align-items: center;
           gap: 6px;
         }
-        .radar-toggle.active { background: #4fc3f7; color: #003366; }
+        .toggle-btn.active { background: #4fc3f7; color: #003366; }
         .time-display {
           color: #fff;
           font-size: 11px;
@@ -243,11 +243,124 @@ const generateRadarMapHtml = (centerLat: number, centerLon: number): string => {
         .zoom-btn:first-child { border-bottom: 1px solid #ddd; }
         .zoom-btn:active { background: #e0e0e0; }
         .leaflet-control-zoom { display: none !important; }
-        .loading { color: #003366; text-align: center; padding: 20px; }
-        .alert-count-badge {
-          background: #ff5722;
-          color: #fff;
-          padding: 2px 8px;
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomInBtn">+</button>
+        <button class="zoom-btn" id="zoomOutBtn">−</button>
+      </div>
+      <div class="controls-row">
+        <button class="toggle-btn active" id="alertsBtn">⚠️ Alerts</button>
+        <button class="toggle-btn active" id="radarBtn">☁️ Radar</button>
+        <span class="time-display" id="timeDisplay">Loading...</span>
+      </div>
+      <div class="legend-box">
+        <div class="legend-title">⚠️ NWS WATCH / WARNING / ADVISORY</div>
+        <div class="legend-grid">
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ff69b4;"></div>
+            <span class="legend-text">Winter Storm</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #00ffff;"></div>
+            <span class="legend-text">Extreme Cold</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #b0c4de;"></div>
+            <span class="legend-text">Wind Chill</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #00ff00;"></div>
+            <span class="legend-text">Flood</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ff0000;"></div>
+            <span class="legend-text">Tornado</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #ffa500;"></div>
+            <span class="legend-text">Severe T-Storm</span>
+          </div>
+        </div>
+      </div>
+      <script>
+        var map = L.map('map', { 
+          zoomControl: false,
+          attributionControl: false,
+          minZoom: 3,
+          maxZoom: 12
+        }).setView([${usLat}, ${usLon}], 5);
+        
+        // Light base map
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19
+        }).addTo(map);
+        
+        // IEM Watch/Warning/Advisory WMS Layer - THIS SHOWS THE COLORED COUNTY BOXES!
+        var alertsLayer = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/us/wwa.cgi', {
+          layers: 'warnings_c,watches_c,advisories_c',
+          format: 'image/png',
+          transparent: true,
+          opacity: 0.7,
+          zIndex: 100
+        }).addTo(map);
+        
+        var radarLayer = null;
+        var showRadar = true;
+        var showAlerts = true;
+        
+        // Load radar overlay
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+          .then(r => r.json())
+          .then(data => {
+            var frames = data.radar.past;
+            if (frames.length > 0) {
+              var latest = frames[frames.length - 1];
+              radarLayer = L.tileLayer(
+                'https://tilecache.rainviewer.com' + latest.path + '/512/{z}/{x}/{y}/2/1_1.png',
+                { opacity: 0.5, zIndex: 50, tileSize: 512, zoomOffset: -1 }
+              );
+              if (showRadar) radarLayer.addTo(map);
+              
+              // Update timestamp
+              var date = new Date(latest.time * 1000);
+              document.getElementById('timeDisplay').textContent = 'Updated: ' + date.toLocaleTimeString();
+            }
+          })
+          .catch(function() {
+            document.getElementById('timeDisplay').textContent = 'NWS Alerts Active';
+          });
+        
+        // Toggle alerts layer
+        document.getElementById('alertsBtn').onclick = function() {
+          showAlerts = !showAlerts;
+          this.classList.toggle('active', showAlerts);
+          if (showAlerts) {
+            alertsLayer.addTo(map);
+          } else {
+            map.removeLayer(alertsLayer);
+          }
+        };
+        
+        // Toggle radar layer
+        document.getElementById('radarBtn').onclick = function() {
+          showRadar = !showRadar;
+          this.classList.toggle('active', showRadar);
+          if (showRadar && radarLayer) {
+            radarLayer.addTo(map);
+          } else if (radarLayer) {
+            map.removeLayer(radarLayer);
+          }
+        };
+        
+        document.getElementById('zoomInBtn').onclick = function() { map.zoomIn(); };
+        document.getElementById('zoomOutBtn').onclick = function() { map.zoomOut(); };
+      </script>
+    </body>
+    </html>
+  `;
           border-radius: 12px;
           font-size: 11px;
           font-weight: 700;
