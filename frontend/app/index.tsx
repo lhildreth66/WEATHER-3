@@ -2014,4 +2014,50 @@ const styles = StyleSheet.create({
   chatSendBtnDisabled: {
     backgroundColor: '#3f3f46',
   },
+  // Radar button and modal styles
+  radarHomeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#14532d',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    gap: 4,
+  },
+  radarHomeBtnText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  radarModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  radarModalContent: {
+    flex: 1,
+    backgroundColor: '#18181b',
+  },
+  radarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#27272a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3f3f46',
+  },
+  radarHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  radarTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  radarWebView: {
+    flex: 1,
+  },
 });
