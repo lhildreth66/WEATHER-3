@@ -552,12 +552,12 @@ export default function HomeScreen() {
               <span class="legend-text">Winter Storm</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #00ffff;"></div>
-              <span class="legend-text">Extreme Cold</span>
+              <div class="legend-color" style="background: #9400d3;"></div>
+              <span class="legend-text">Special Statement</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background: #b0c4de;"></div>
-              <span class="legend-text">Wind Chill</span>
+              <div class="legend-color" style="background: #00ffff;"></div>
+              <span class="legend-text">Extreme Cold</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background: #00ff00;"></div>
