@@ -143,7 +143,7 @@ export default function LastChanceScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>🏪 Last Chance Supplies</Text>
           <Text style={styles.subtitle}>Find grocery, propane, and hardware stores before going remote</Text>
-          <Text style={styles.infoNote}>💡 TIP: If a result shows "Name" or is missing a title, don't worry—tap Navigate and Google Maps will display the business name in directions. We use free map data to keep costs (and pricing) low.</Text>
+          
 
           {locationLoading && (
             <View style={styles.loadingLocationBox}>
