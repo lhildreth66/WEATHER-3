@@ -689,6 +689,12 @@ export default function HomeScreen() {
                     onFocus={() => origin.length >= 2 && setShowOriginSuggestions(originSuggestions.length > 0)}
                     onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 200)}
                     returnKeyType="next"
+                    autoComplete="off"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    textContentType="none"
+                    importantForAutofill="no"
+                    dataDetectorTypes="none"
                   />
                   {autocompleteLoading && origin.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
@@ -759,6 +765,12 @@ export default function HomeScreen() {
                     onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
                     returnKeyType="done"
                     onSubmitEditing={handleGetWeather}
+                    autoComplete="off"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    textContentType="none"
+                    importantForAutofill="no"
+                    dataDetectorTypes="none"
                   />
                   {autocompleteLoading && destination.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
