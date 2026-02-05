@@ -772,7 +772,7 @@ export default function HomeScreen() {
                   <View style={styles.destinationIcon}>
                     <Ionicons name="navigate" size={20} color="#ef4444" />
                   </View>
-                  <TextInput
+                  <NoAutofillInput
                     style={styles.input}
                     placeholder="Enter destination"
                     placeholderTextColor="#6b7280"
@@ -782,12 +782,6 @@ export default function HomeScreen() {
                     onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
                     returnKeyType="done"
                     onSubmitEditing={handleGetWeather}
-                    autoComplete="off"
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    textContentType="none"
-                    importantForAutofill="no"
-                    dataDetectorTypes="none"
                   />
                   {autocompleteLoading && destination.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
