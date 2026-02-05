@@ -176,42 +176,26 @@ export default function CampsiteIndexScreen() {
               Automatic mode fetches real-time data: current wind, terrain slope, tree shade, road access, cell signal, and passability conditions.
             </Text>
             
-            <View style={styles.locationRow}>
-              <View style={styles.coordInput}>
-                <Text style={styles.label}>Latitude</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={latitude}
-                  onChangeText={setLatitude}
-                  placeholder="40.7128"
-                  placeholderTextColor="#999"
-                  editable={!loading}
-                />
+            {/* Location Display with Auto-detect */}
+            <View style={styles.locationBox}>
+              <View style={styles.locationBoxHeader}>
+                <Ionicons name="location" size={18} color="#eab308" />
+                <Text style={styles.locationBoxLabel}>Your Location</Text>
+                <TouchableOpacity
+                  style={styles.refreshLocationBtn}
+                  onPress={refreshLocation}
+                  disabled={locationLoading || loading}
+                >
+                  {locationLoading ? (
+                    <ActivityIndicator size="small" color="#eab308" />
+                  ) : (
+                    <Ionicons name="refresh" size={18} color="#eab308" />
+                  )}
+                </TouchableOpacity>
               </View>
-              <View style={styles.coordInput}>
-                <Text style={styles.label}>Longitude</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={longitude}
-                  onChangeText={setLongitude}
-                  placeholder="-74.0060"
-                  placeholderTextColor="#999"
-                  editable={!loading}
-                />
-              </View>
-              <TouchableOpacity
-                style={styles.refreshLocationButton}
-                onPress={refreshLocation}
-                disabled={locationLoading || loading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator size="small" color="#eab308" />
-                ) : (
-                  <Ionicons name="refresh" size={20} color="#eab308" />
-                )}
-              </TouchableOpacity>
+              <Text style={styles.locationBoxCoords}>
+                {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+              </Text>
             </View>
           </>
         ) : (
