@@ -143,37 +143,27 @@ export default function LastChanceScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>🏪 Last Chance Supplies</Text>
           <Text style={styles.subtitle}>Find grocery, propane, and hardware stores before going remote</Text>
-          
 
-          {locationLoading && (
-            <View style={styles.loadingLocationBox}>
-              <ActivityIndicator size="small" color="#f59e0b" />
-              <Text style={styles.loadingLocationText}>Determining your current location...</Text>
+          {/* Location Display with Auto-detect */}
+          <View style={styles.locationBox}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="location" size={18} color="#f59e0b" />
+              <Text style={styles.locationLabel}>Your Location</Text>
+              <TouchableOpacity 
+                onPress={useCurrentLocation} 
+                style={styles.refreshLocationBtn}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#f59e0b" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#f59e0b" />
+                )}
+              </TouchableOpacity>
             </View>
-          )}
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Latitude</Text>
-            <TextInput
-              value={latitude}
-              onChangeText={setLatitude}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 34.05"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Longitude</Text>
-            <TextInput
-              value={longitude}
-              onChangeText={setLongitude}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., -111.03"
-              placeholderTextColor="#9ca3af"
-            />
+            <Text style={styles.locationCoords}>
+              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+            </Text>
           </View>
 
           <View style={styles.inputRow}>
