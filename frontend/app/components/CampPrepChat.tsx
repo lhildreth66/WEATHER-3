@@ -151,7 +151,7 @@ export default function CampPrepChat({ onClose }: CampPrepChatProps) {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>🏕️ Boondockers</Text>
-          <Text style={styles.headerSubtitle}>Premium campsite planning tools</Text>
+          <Text style={styles.headerSubtitle}>Campsite planning tools</Text>
         </View>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Text style={styles.closeButtonText}>✕</Text>
@@ -186,15 +186,7 @@ export default function CampPrepChat({ onClose }: CampPrepChatProps) {
               {msg.text}
             </Text>
 
-            {msg.premium?.locked && (
-              <View style={styles.premiumLockBanner}>
-                <Text style={styles.premiumLockText}>
-                  🔒 Upgrade to premium to unlock this feature
-                </Text>
-              </View>
-            )}
-
-            {msg.payload && !msg.premium?.locked && renderPayload(msg.payload)}
+            {msg.payload && renderPayload(msg.payload)}
           </View>
         ))}
 
