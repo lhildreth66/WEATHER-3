@@ -6,7 +6,6 @@
  */
 
 import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -25,15 +24,12 @@ export interface TerrainShadeRequest {
   date: string; // ISO format: YYYY-MM-DD
   tree_canopy_pct?: number; // 0-100%
   horizon_obstruction_deg?: number; // 0-90°
-  subscription_id?: string;
 }
 
 export interface TerrainShadeResponse {
   sun_path_slots?: SunPathSlot[] | null;
   shade_factor?: number | null; // 0.0-1.0
   exposure_hours?: number | null; // Effective sunlight hours
-  is_premium_locked: boolean;
-  premium_message?: string | null;
 }
 
 export interface UseTerrainShadeReturn {
@@ -46,25 +42,6 @@ export interface UseTerrainShadeReturn {
 
 /**
  * Hook for terrain shade and solar path estimation
- *
- * Usage:
- * ```typescript
- * const { estimate, loading, error, result } = useTerrainShade();
- *
- * await estimate({
- *   latitude: 40.7128,
- *   longitude: -105.1084,
- *   date: '2024-06-21',
- *   tree_canopy_pct: 60,
- *   horizon_obstruction_deg: 15,
- * });
- *
- * if (result?.is_premium_locked) {
- * // Handle premium response
- * } else if (result?.sun_path_slots) {
- *   // Display solar path and shade factor
- * }
- * ```
  */
 export const useTerrainShade = (): UseTerrainShadeReturn => {
   const [loading, setLoading] = useState(false);
@@ -78,30 +55,15 @@ export const useTerrainShade = (): UseTerrainShadeReturn => {
     setError(null);
 
     try {
-      // Retrieve subscription ID from AsyncStorage if not provided
-      let subscriptionId = request.subscription_id;
-      if (!subscriptionId) {
-        try {
-          subscriptionId = await AsyncStorage.getItem('subscription_id');
-        } catch (e) {
-          console.log('Could not retrieve subscription ID from storage');
-        }
-      }
-
-      // Call API endpoint for solar path
-      const response = await fetch(`${API_BASE}/api/pro/terrain/sun-path`, {
+      const response = await fetch(`${API_BASE}/api/terrain/sun-path`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...request,
-          subscription_id: subscriptionId,
-        }),
+        body: JSON.stringify(request),
       });
 
       if (!response.ok) {
-        // Try to parse error detail from response
         let errorDetail = `HTTP ${response.status}`;
         try {
           const errorData = await response.json();
@@ -109,23 +71,12 @@ export const useTerrainShade = (): UseTerrainShadeReturn => {
             errorDetail = errorData.detail;
           }
         } catch {
-          // If response isn't JSON, use status message
           errorDetail = response.statusText || `HTTP ${response.status}`;
         }
         throw new Error(errorDetail);
       }
 
       const data: TerrainShadeResponse = await response.json();
-
-      // Detect premium-locked response
-      if (data.is_premium_locked && data.premium_message) {
-        setError(data.premium_message);
-        setResult(data);
-        setLoading(false);
-        return data;
-      }
-
-      // Success
       setResult(data);
       setLoading(false);
       return data;
