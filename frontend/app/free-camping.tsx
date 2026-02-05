@@ -95,7 +95,7 @@ export default function FreeCampingScreen() {
     setSpots([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/pro/free-camping/search`, {
+      const resp = await axios.post(`${API_BASE}/api/free-camping/search`, {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         radius_miles: parseInt(searchRadius, 10),
