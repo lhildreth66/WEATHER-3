@@ -66,6 +66,7 @@ export default function RootLayout() {
         <Stack.Screen name="truckerAlerts" />
         <Stack.Screen name="radar-map" />
         <Stack.Screen name="weather-alerts" />
+        <Stack.Screen name="user-guide" />
       </Stack>
     </>
   );
