@@ -1713,6 +1713,65 @@ Always prioritize safety in your recommendations."""
             suggestions=["Check road conditions", "View weather alerts", "Contact support"]
         )
 
+# ==================== Push Notifications ====================
+
+@api_router.post("/push-tokens", response_model=PushTokenResponse)
+async def register_push_token(request: PushTokenRequest):
+    """
+    Register a push notification token for the device.
+    This endpoint stores tokens for sending notifications via Expo's push service.
+    """
+    try:
+        # Store in MongoDB
+        token_doc = {
+            "token": request.token,
+            "platform": request.platform,
+            "userId": request.userId,
+            "timestamp": request.timestamp or datetime.utcnow().isoformat(),
+            "active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        # Upsert based on token (update if exists, insert if new)
+        await db.push_tokens.update_one(
+            {"token": request.token},
+            {"$set": token_doc},
+            upsert=True
+        )
+        
+        logger.info(f"Push token registered: {request.platform} - {request.token[:20]}...")
+        
+        return PushTokenResponse(
+            success=True,
+            message="Push token registered successfully"
+        )
+    except Exception as e:
+        logger.error(f"Error registering push token: {e}")
+        return PushTokenResponse(
+            success=False,
+            message=f"Error: {str(e)}"
+        )
+
+@api_router.delete("/push-tokens/{token}")
+async def unregister_push_token(token: str):
+    """
+    Unregister a push notification token (mark as inactive).
+    """
+    try:
+        result = await db.push_tokens.update_one(
+            {"token": token},
+            {"$set": {"active": False, "updated_at": datetime.utcnow()}}
+        )
+        
+        if result.modified_count > 0:
+            return {"success": True, "message": "Token unregistered"}
+        else:
+            return {"success": False, "message": "Token not found"}
+    except Exception as e:
+        logger.error(f"Error unregistering push token: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
