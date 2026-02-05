@@ -41,8 +41,8 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="route" />
-        {/* Boondockers Pro Screens */}
-        <Stack.Screen name="boondockers-pro" />
+        {/* Boondockers Screens */}
+        <Stack.Screen name="boondockers" />
         <Stack.Screen name="camp-prep-checklist" />
         <Stack.Screen name="free-camping" />
         <Stack.Screen name="dump-station" />
@@ -54,8 +54,8 @@ export default function RootLayout() {
         <Stack.Screen name="wind-shelter" />
         <Stack.Screen name="connectivity" />
         <Stack.Screen name="campsite-index" />
-        {/* Tractor Trailer Pro Screens */}
-        <Stack.Screen name="tractor-trailer-pro" />
+        {/* Tractor Trailer Screens */}
+        <Stack.Screen name="tractor-trailer" />
         <Stack.Screen name="truck-stops" />
         <Stack.Screen name="weigh-stations" />
         <Stack.Screen name="truck-parking" />
