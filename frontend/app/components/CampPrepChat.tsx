@@ -15,18 +15,11 @@ interface CampPrepChatProps {
   onClose: () => void;
 }
 
-interface PremiumInfo {
-  required: boolean;
-  locked: boolean;
-  feature?: string;
-}
-
 interface CampPrepResponse {
   mode: string;
   command: string;
   human: string;
   payload: any;
-  premium: PremiumInfo;
   error?: string;
 }
 
@@ -34,7 +27,6 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   payload?: any;
-  premium?: PremiumInfo;
   error?: string;
 }
 
