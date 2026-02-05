@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { API_BASE } from '../apiConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface SolarForecastRequest {
   lat: number;                // Latitude (-90 to 90)
@@ -9,7 +8,6 @@ export interface SolarForecastRequest {
   panel_watts: number;        // Solar panel capacity in watts (>0)
   shade_pct: number;          // Average shade percentage (0-100)
   cloud_cover: number[];      // Cloud cover % per date (0-100)
-  subscription_id?: string;   // Optional subscription ID for gating
 }
 
 export interface SolarForecastResponse {
@@ -18,8 +16,6 @@ export interface SolarForecastResponse {
   panel_watts?: number;
   shade_pct?: number;
   advisory?: string;          // Human-readable advisory with emoji
-  is_premium_locked: boolean;
-  premium_message?: string;
 }
 
 export interface UseSolarForecastReturn {
@@ -37,20 +33,6 @@ export interface UseSolarForecastReturn {
  * - Pure deterministic calculations
  * - Accounts for latitude, season, cloud cover, and shade
  * - Returns Wh/day estimates for multi-day forecasts
- * 
- * Usage:
- * ```
- * const { forecast, loading, result, error } = useSolarForecast();
- * 
- * const forecast_data = await forecast({
- *   lat: 34.05,
- *   lon: -111.03,
- *   date_range: ["2026-01-20", "2026-01-21"],
- *   panel_watts: 400,
- *   shade_pct: 15,
- *   cloud_cover: [10, 50],
- * });
- * ```
  */
 export const useSolarForecast = (): UseSolarForecastReturn => {
   const [loading, setLoading] = useState(false);
@@ -64,13 +46,7 @@ export const useSolarForecast = (): UseSolarForecastReturn => {
     setError(null);
 
     try {
-      // Get subscription ID from storage if not provided
-      let subscriptionId = request.subscription_id;
-      if (!subscriptionId) {
-        subscriptionId = await AsyncStorage.getItem('routecast_subscription_id');
-      }
-
-      const response = await fetch(`${API_BASE}/api/pro/solar-forecast`, {
+      const response = await fetch(`${API_BASE}/api/solar-forecast`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +58,6 @@ export const useSolarForecast = (): UseSolarForecastReturn => {
           panel_watts: request.panel_watts,
           shade_pct: request.shade_pct,
           cloud_cover: request.cloud_cover,
-          subscription_id: subscriptionId,
         }),
       });
 
@@ -94,15 +69,6 @@ export const useSolarForecast = (): UseSolarForecastReturn => {
       }
 
       const data: SolarForecastResponse = await response.json();
-
-      // Check if response indicates premium lock
-      if (data.is_premium_locked) {
-        setError(
-          data.premium_message ||
-          'This feature requires a premium subscription.'
-        );
-      }
-
       setResult(data);
       return data;
     } catch (err) {
@@ -110,7 +76,6 @@ export const useSolarForecast = (): UseSolarForecastReturn => {
         err instanceof Error ? err.message : 'Unknown error forecasting solar energy';
       setError(errorMessage);
       console.error('[SolarForecast] Forecast error:', errorMessage);
-
       throw err;
     } finally {
       setLoading(false);
