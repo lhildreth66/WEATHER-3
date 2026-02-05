@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Weather REDO",
+    "name": "RouteCast",
     "slug": "weather-redo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,7 @@
     "scheme": "weather-redo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": false,
-    "description": "Weather REDO: real-time forecasts and alerts along your route.",
+    "description": "RouteCast: Weather-smart route planning for RVers, truckers, and travelers. Real-time forecasts, road conditions, and hazard alerts along your route.",
     "splash": {
       "image": "./assets/images/splash-image.png",
       "resizeMode": "contain",
