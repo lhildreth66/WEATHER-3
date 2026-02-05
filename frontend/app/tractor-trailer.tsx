@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function TractorTrailerProScreen() {
+export default function TractorTrailerScreen() {
   const router = useRouter();
 
   const categories = [
@@ -72,7 +72,7 @@ export default function TractorTrailerProScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.title}>🚛 Tractor Trailer</Text>
-          <Text style={styles.subtitle}>Professional tools for commercial drivers</Text>
+          <Text style={styles.subtitle}>Tools for commercial drivers</Text>
         </View>
 
         <View style={styles.categoriesContainer}>

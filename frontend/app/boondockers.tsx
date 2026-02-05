@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } fr
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function BoondockersProScreen() {
+export default function BoondockersScreen() {
   const router = useRouter();
 
   const features = [
