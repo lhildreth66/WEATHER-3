@@ -1126,16 +1126,12 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
               
-              <TextInput
+              <NoAutofillInput
                 style={styles.modalInput}
                 placeholder="Enter stop location"
                 placeholderTextColor="#6b7280"
                 value={newStopLocation}
                 onChangeText={setNewStopLocation}
-                autoComplete="off"
-                autoCorrect={false}
-                autoCapitalize="none"
-                textContentType="none"
               />
               
               <Text style={styles.stopTypeLabel}>Stop Type</Text>
