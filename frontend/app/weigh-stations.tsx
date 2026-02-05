@@ -145,42 +145,26 @@ export default function WeighStationsScreen() {
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.locationRow}>
-            <View style={styles.inputRow}>
-              <Text style={styles.label}>Latitude</Text>
-              <TextInput
-                value={latitude}
-                onChangeText={setLatitude}
-                keyboardType="numeric"
-                style={styles.input}
-                placeholder="e.g., 34.05"
-                placeholderTextColor="#9ca3af"
-              />
+          {/* Location Display with Auto-detect */}
+          <View style={styles.locationBox}>
+            <View style={styles.locationBoxHeader}>
+              <Ionicons name="location" size={18} color="#8b5cf6" />
+              <Text style={styles.locationBoxLabel}>Your Location</Text>
+              <TouchableOpacity
+                style={styles.refreshLocationBtn}
+                onPress={refreshLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#8b5cf6" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#8b5cf6" />
+                )}
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.inputRow}>
-              <Text style={styles.label}>Longitude</Text>
-              <TextInput
-                value={longitude}
-                onChangeText={setLongitude}
-                keyboardType="numeric"
-                style={styles.input}
-                placeholder="e.g., -111.03"
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={refreshLocation}
-              disabled={locationLoading}
-            >
-              {locationLoading ? (
-                <ActivityIndicator size="small" color="#eab308" />
-              ) : (
-                <Ionicons name="refresh" size={20} color="#eab308" />
-              )}
-            </TouchableOpacity>
+            <Text style={styles.locationBoxCoords}>
+              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+            </Text>
           </View>
 
           <View style={styles.inputRow}>
