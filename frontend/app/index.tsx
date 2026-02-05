@@ -1121,6 +1121,10 @@ export default function HomeScreen() {
                 placeholderTextColor="#6b7280"
                 value={newStopLocation}
                 onChangeText={setNewStopLocation}
+                autoComplete="off"
+                autoCorrect={false}
+                autoCapitalize="none"
+                textContentType="none"
               />
               
               <Text style={styles.stopTypeLabel}>Stop Type</Text>
@@ -1269,6 +1273,9 @@ export default function HomeScreen() {
                   onChangeText={setChatMessage}
                   onSubmitEditing={() => sendChatMessage()}
                   returnKeyType="send"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  textContentType="none"
                 />
                 <TouchableOpacity 
                   style={[styles.chatSendBtn, !chatMessage.trim() && styles.chatSendBtnDisabled]}
