@@ -83,7 +83,6 @@ export default function CampPrepChat({ onClose }: CampPrepChatProps) {
           role: 'assistant',
           text: data.human,
           payload: data.payload,
-          premium: data.premium,
           error: data.error,
         },
       ]);
