@@ -2,7 +2,7 @@
  * Smart Delay Trip Registration Component (Task E1 - Pro)
  *
  * Allows users to register planned trips for smart departure delay alerts.
- * Appears when user is premium and has created a route.
+ * Appears when user has created a route.
  */
 
 import React, { useState, useCallback } from 'react';
