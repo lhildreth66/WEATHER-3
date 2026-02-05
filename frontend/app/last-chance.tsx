@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#e5e7eb',
   },
-  infoNote: {
+  infoNoteContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#3f3f46',
