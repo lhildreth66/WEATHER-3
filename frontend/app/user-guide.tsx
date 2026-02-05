@@ -5,7 +5,6 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  Image,
   Dimensions 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,8 +19,12 @@ interface GuideSection {
   icon: string;
   color: string;
   description: string;
-  steps: string[];
-  tips: string[];
+  features: {
+    name: string;
+    icon: string;
+    description: string;
+    tips?: string[];
+  }[];
 }
 
 const guideSections: GuideSection[] = [
@@ -30,17 +33,122 @@ const guideSections: GuideSection[] = [
     title: 'Getting Started',
     icon: 'rocket',
     color: '#8b5cf6',
-    description: 'Welcome to RouteCast! Your all-in-one weather and route planning companion for RVers, truckers, and travelers.',
-    steps: [
-      'Enter your origin and destination on the home screen',
-      'Select your vehicle type (RV, Pickup, Sedan, or Tractor Trailer)',
-      'Tap "Get Route Forecast" to see weather along your route',
-      'Review hourly forecasts, road conditions, and hazard alerts'
-    ],
-    tips: [
-      'Enable location services for automatic route starting point',
-      'Use voice input by tapping the microphone icon',
-      'Swipe down to refresh forecasts with latest data'
+    description: 'Welcome to RouteCast! Your complete weather and route planning companion.',
+    features: [
+      {
+        name: 'Enter Your Route',
+        icon: 'navigate',
+        description: 'Enter origin and destination addresses on the home screen. Use the microphone for voice input.',
+        tips: ['Enable location services for automatic starting point', 'Use landmarks or city names for faster entry']
+      },
+      {
+        name: 'Select Vehicle Type',
+        icon: 'car',
+        description: 'Choose your vehicle: Sedan, Pickup Truck, RV, or Tractor Trailer. This affects hazard warnings and route recommendations.',
+        tips: ['RV mode shows low clearance warnings', 'Tractor Trailer mode includes weigh station info']
+      },
+      {
+        name: 'Get Route Forecast',
+        icon: 'cloud',
+        description: 'Tap "Get Route Forecast" to see weather conditions along your entire route with hourly breakdowns.',
+      }
+    ]
+  },
+  {
+    id: 'weather-features',
+    title: 'Weather Along Route',
+    icon: 'thunderstorm',
+    color: '#eab308',
+    description: 'Real-time weather data for every point on your journey.',
+    features: [
+      {
+        name: 'Hourly Forecasts',
+        icon: 'time',
+        description: 'View hour-by-hour weather for each waypoint. See temperature, precipitation chance, wind speed, and conditions.',
+        tips: ['Swipe horizontally to see more hours', 'Tap a waypoint for detailed forecast']
+      },
+      {
+        name: 'Weather Alerts',
+        icon: 'warning',
+        description: 'Active NWS alerts along your route. Shows up to 10 alerts from the last 2 hours on your current route path.',
+        tips: ['Red alerts = severe weather, consider delaying', 'Yellow alerts = caution, monitor conditions', 'Alerts auto-refresh every 15 minutes']
+      },
+      {
+        name: 'Road Conditions',
+        icon: 'car-sport',
+        description: 'See road surface conditions based on precipitation, temperature, and recent weather. Includes ice risk, wet roads, and visibility warnings.',
+        tips: ['Check "Hazards" tab for road condition summary', 'Temperature below 32°F triggers ice warnings']
+      },
+      {
+        name: 'Weather Radar Map',
+        icon: 'map',
+        description: 'Live precipitation radar overlay on your route map. See rain, snow, and storm cells in real-time.',
+        tips: ['Pinch to zoom for detail', 'Radar updates every 5 minutes', 'Use timeline slider to see forecast movement']
+      }
+    ]
+  },
+  {
+    id: 'smart-features',
+    title: 'Smart Travel Features',
+    icon: 'bulb',
+    color: '#06b6d4',
+    description: 'Intelligent features to optimize your travel.',
+    features: [
+      {
+        name: 'Leave Later / Smart Delay',
+        icon: 'time',
+        description: 'Get recommendations on the best departure time based on weather conditions. Avoid storms by delaying your trip when conditions will improve.',
+        tips: ['Shows optimal departure windows', 'Compares current vs delayed weather', 'Considers your full route, not just origin']
+      },
+      {
+        name: 'Route to Speech',
+        icon: 'volume-high',
+        description: 'Listen to your route weather summary hands-free. Perfect for when you\'re packing up or doing pre-trip checks.',
+        tips: ['Tap the speaker icon on route screen', 'Includes hazard warnings in audio', 'Works with Bluetooth audio']
+      },
+      {
+        name: 'Push Notifications',
+        icon: 'notifications',
+        description: 'Receive alerts when weather conditions change significantly along your saved routes. Get warned about severe weather before you hit it.',
+        tips: ['Enable notifications when prompted', 'Critical alerts for tornado/flash flood', 'Customize in device settings']
+      },
+      {
+        name: 'AI Chat Assistant',
+        icon: 'chatbubbles',
+        description: 'Ask questions about your route, weather, or get travel recommendations. The AI knows your current route context.',
+        tips: ['Ask "What should I watch out for?"', 'Request rest stop recommendations', 'Get advice on best travel times', 'Tap chat bubble in bottom right']
+      }
+    ]
+  },
+  {
+    id: 'hazards-alerts',
+    title: 'Hazards & Safety Alerts',
+    icon: 'alert-circle',
+    color: '#ef4444',
+    description: 'Stay informed about road hazards and safety concerns.',
+    features: [
+      {
+        name: 'Bridge Height Alerts',
+        icon: 'git-commit',
+        description: 'Warnings for low clearance bridges on your route. Essential for RVs and commercial trucks. Shows exact height in feet and inches.',
+        tips: ['Set your vehicle height in settings', 'Alerts show distance to bridge', 'Includes alternate route suggestions']
+      },
+      {
+        name: 'Wind Warnings',
+        icon: 'speedometer',
+        description: 'High wind alerts for high-profile vehicles. Triggered when sustained winds exceed 25mph or gusts exceed 40mph.',
+        tips: ['Critical for RVs and tractor trailers', 'Shows wind direction relative to route', 'Includes specific danger zones']
+      },
+      {
+        name: 'Visibility Warnings',
+        icon: 'eye-off',
+        description: 'Alerts for fog, heavy rain, snow, or dust that reduces visibility below safe driving levels.',
+      },
+      {
+        name: 'Ice & Snow Alerts',
+        icon: 'snow',
+        description: 'Warnings when road temperatures are near or below freezing with precipitation. Includes black ice risk assessment.',
+      }
     ]
   },
   {
@@ -48,17 +156,73 @@ const guideSections: GuideSection[] = [
     title: 'Boondockers Features',
     icon: 'bonfire',
     color: '#8b4513',
-    description: 'Access specialized tools for off-grid camping and RV living.',
-    steps: [
-      'From the route screen, tap the Boondockers card',
-      'Choose from features like Free Camping, Dump Stations, or Solar Forecast',
-      'Your location is automatically detected - tap refresh to update',
-      'Results are sorted by distance from your current position'
-    ],
-    tips: [
-      'Check Campsite Index for a quality score of any GPS location',
-      'Use Water Budget and Propane Usage before long boondocking trips',
-      'Wind Shelter helps you orient your RV for best protection'
+    description: 'Complete toolkit for off-grid camping and RV living.',
+    features: [
+      {
+        name: 'Free Camping Finder',
+        icon: 'leaf',
+        description: 'Discover BLM land, National Forest dispersed camping, and other free camping spots near your location.',
+        tips: ['Results sorted by distance', 'Shows access road conditions', 'Tap Navigate for directions']
+      },
+      {
+        name: 'Dump Station Finder',
+        icon: 'water',
+        description: 'Locate RV dump stations and fresh water fill points. Includes fee info and hours when available.',
+        tips: ['Filter by free vs paid', 'Shows potable water availability', 'Distance in miles from your location']
+      },
+      {
+        name: 'Last Chance Supplies',
+        icon: 'cart',
+        description: 'Find grocery stores, propane refill, hardware stores, and other essential supply stops before heading to remote areas.',
+        tips: ['Search before leaving cell coverage', 'Shows store types and distances', 'Includes 24-hour options']
+      },
+      {
+        name: 'RV Dealerships',
+        icon: 'construct',
+        description: 'Locate nearby RV dealerships for repairs, parts, and service. Useful for emergencies on the road.',
+        tips: ['Shows service types offered', 'Includes phone numbers', 'Results within 10 mile radius']
+      },
+      {
+        name: 'Solar Forecast',
+        icon: 'sunny',
+        description: 'Predict daily solar energy generation based on your location, panel size, shade, and weather forecast.',
+        tips: ['Enter your panel wattage', 'Accounts for cloud cover', 'Shows Wh/day estimates']
+      },
+      {
+        name: 'Propane Usage Calculator',
+        icon: 'flame',
+        description: 'Estimate propane consumption based on furnace BTU, overnight temperatures, and usage patterns.',
+        tips: ['Enter your furnace BTU rating', 'Accounts for duty cycle', 'Shows lbs/day consumption']
+      },
+      {
+        name: 'Water Budget Planner',
+        icon: 'water',
+        description: 'Calculate how many days your fresh, gray, and black tanks will last based on usage patterns.',
+        tips: ['Enter tank capacities', 'Adjust for number of people', 'Shows limiting factor']
+      },
+      {
+        name: 'Wind Shelter Advisor',
+        icon: 'compass',
+        description: 'Get recommendations on how to orient your RV for best wind protection based on local terrain and weather.',
+        tips: ['Enter predominant wind direction', 'Shows recommended parking bearing', 'Estimates wind reduction %']
+      },
+      {
+        name: 'Connectivity Checker',
+        icon: 'cellular',
+        description: 'Predict cell signal strength (AT&T, Verizon, T-Mobile) and Starlink viability at your campsite location.',
+        tips: ['Select your carrier', 'Shows signal bar estimate', 'Starlink checks horizon obstructions']
+      },
+      {
+        name: 'Campsite Index',
+        icon: 'analytics',
+        description: 'Get an overall quality score (0-100) for any GPS location based on wind, shade, road access, cell signal, and more.',
+        tips: ['Auto mode fetches real data', 'Manual mode for planning', 'Higher score = better campsite']
+      },
+      {
+        name: 'Camp Prep Checklist',
+        icon: 'checkbox',
+        description: 'Interactive checklist for setting up camp. Never forget to chock wheels, level, or connect utilities.',
+      }
     ]
   },
   {
@@ -67,70 +231,77 @@ const guideSections: GuideSection[] = [
     icon: 'bus',
     color: '#3b82f6',
     description: 'Professional tools designed for commercial truck drivers.',
-    steps: [
-      'From the route screen, tap the Tractor Trailer card',
-      'Search for Truck Stops, Weigh Stations, or Parking',
-      'View truck restrictions and low clearance warnings',
-      'Find truck services and repair shops nearby'
-    ],
-    tips: [
-      'Always check Low Clearance alerts before unfamiliar routes',
-      'Use Truck Parking feature during HOS rest requirements',
-      'Weigh Stations shows open/closed status when available'
+    features: [
+      {
+        name: 'Truck Stops & Fuel',
+        icon: 'speedometer',
+        description: 'Find truck stops with diesel, DEF, and amenities. Shows major chains and independent stops.',
+        tips: ['Filter by amenities', 'Shows current fuel prices when available', 'Includes parking availability']
+      },
+      {
+        name: 'Weigh Stations',
+        icon: 'scale',
+        description: 'Locate weigh stations along highways. Shows open/closed status when available and bypass info.',
+        tips: ['Check before route planning', 'Shows PrePass/Drivewyze info', 'Distance from current location']
+      },
+      {
+        name: 'Truck Parking',
+        icon: 'car',
+        description: 'Find safe overnight parking at rest areas, truck stops, and designated parking lots.',
+        tips: ['Essential for HOS compliance', 'Shows security features', 'Reserve spots when available']
+      },
+      {
+        name: 'Low Clearance Alerts',
+        icon: 'alert',
+        description: 'Warnings for bridges, tunnels, and overpasses with height restrictions. Critical for preventing strikes.',
+        tips: ['Enter your trailer height', 'Shows exact clearance in ft/in', 'Alerts well in advance']
+      },
+      {
+        name: 'Truck Services',
+        icon: 'build',
+        description: 'Find repair shops, tire services, truck washes, and CAT scales near your location.',
+        tips: ['Filter by service type', 'Shows 24-hour availability', 'Includes phone numbers']
+      },
+      {
+        name: 'Truck Restrictions',
+        icon: 'close-circle',
+        description: 'View weight limits, height restrictions, hazmat restrictions, and truck-banned routes in your area.',
+        tips: ['Check before unfamiliar routes', 'Shows restriction type and limit', 'Includes tunnel restrictions']
+      }
     ]
   },
   {
-    id: 'weather-features',
-    title: 'Weather & Alerts',
-    icon: 'thunderstorm',
-    color: '#eab308',
-    description: 'Stay informed about weather conditions along your route.',
-    steps: [
-      'View hourly forecasts for each waypoint on your route',
-      'Check the Hazards tab for severe weather alerts',
-      'Road conditions show precipitation, wind, and temperature risks',
-      'Weather Radar provides real-time precipitation maps'
-    ],
-    tips: [
-      'Red alerts indicate severe conditions - consider delaying travel',
-      'Wind speeds over 40mph may affect high-profile vehicles',
-      'Check precipitation timing to plan rest stops strategically'
-    ]
-  },
-  {
-    id: 'ai-assistant',
-    title: 'AI Chat Assistant',
-    icon: 'chatbubbles',
-    color: '#06b6d4',
-    description: 'Ask questions about your route, weather, or get travel recommendations.',
-    steps: [
-      'Tap the chat bubble icon in the bottom right',
-      'Type your question or use voice input',
-      'Get personalized recommendations based on your route',
-      'Ask follow-up questions for more details'
-    ],
-    tips: [
-      'Ask "What should I watch out for on this route?"',
-      'Request rest stop recommendations for specific times',
-      'Get advice on best travel times to avoid weather'
-    ]
-  },
-  {
-    id: 'notifications',
-    title: 'Push Notifications',
-    icon: 'notifications',
-    color: '#ef4444',
-    description: 'Receive alerts about weather changes and hazards.',
-    steps: [
-      'Enable notifications when prompted on first launch',
-      'Receive alerts for severe weather along saved routes',
-      'Get notified when conditions improve or worsen',
-      'Customize alert preferences in device settings'
-    ],
-    tips: [
-      'Critical alerts are sent for tornado, flash flood warnings',
-      'Smart Delay feature suggests optimal departure times',
-      'Disable notifications temporarily in your device settings if needed'
+    id: 'tips-tricks',
+    title: 'Tips & Tricks',
+    icon: 'star',
+    color: '#22c55e',
+    description: 'Get the most out of RouteCast.',
+    features: [
+      {
+        name: 'Voice Input',
+        icon: 'mic',
+        description: 'Tap the microphone icon to speak your origin and destination instead of typing.',
+      },
+      {
+        name: 'Pull to Refresh',
+        icon: 'refresh',
+        description: 'Pull down on any screen to refresh data with the latest information.',
+      },
+      {
+        name: 'Location Auto-Detect',
+        icon: 'locate',
+        description: 'All location-based features automatically detect your position. Tap the refresh icon to update.',
+      },
+      {
+        name: 'Offline Planning',
+        icon: 'download',
+        description: 'View previously loaded routes even without internet. Data refreshes when connected.',
+      },
+      {
+        name: 'Share Routes',
+        icon: 'share',
+        description: 'Share your route forecast with co-drivers or dispatch for coordinated planning.',
+      }
     ]
   }
 ];
@@ -156,45 +327,40 @@ export default function UserGuideScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Welcome Banner */}
         <View style={styles.welcomeBanner}>
-          <View style={styles.welcomeIcon}>
-            <Ionicons name="book" size={32} color="#8b5cf6" />
+          <View style={styles.welcomeIconRow}>
+            <View style={[styles.welcomeIcon, { backgroundColor: '#eab30820' }]}>
+              <Ionicons name="partly-sunny" size={28} color="#eab308" />
+            </View>
+            <View style={[styles.welcomeIcon, { backgroundColor: '#3b82f620' }]}>
+              <Ionicons name="navigate" size={28} color="#3b82f6" />
+            </View>
+            <View style={[styles.welcomeIcon, { backgroundColor: '#22c55e20' }]}>
+              <Ionicons name="shield-checkmark" size={28} color="#22c55e" />
+            </View>
           </View>
           <Text style={styles.welcomeTitle}>Welcome to RouteCast</Text>
           <Text style={styles.welcomeSubtitle}>
-            Your complete guide to weather-smart travel planning
+            Weather-smart route planning for RVers, truckers, and travelers
           </Text>
         </View>
 
-        {/* Quick Start */}
-        <View style={styles.quickStart}>
-          <Text style={styles.quickStartTitle}>Quick Start</Text>
-          <View style={styles.quickStartSteps}>
-            <View style={styles.quickStep}>
-              <View style={[styles.stepNumber, { backgroundColor: '#8b5cf6' }]}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <Text style={styles.stepText}>Enter your route</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#4b5563" />
-            <View style={styles.quickStep}>
-              <View style={[styles.stepNumber, { backgroundColor: '#06b6d4' }]}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <Text style={styles.stepText}>View forecast</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#4b5563" />
-            <View style={styles.quickStep}>
-              <View style={[styles.stepNumber, { backgroundColor: '#22c55e' }]}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <Text style={styles.stepText}>Travel safely</Text>
-            </View>
+        {/* Quick Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>10+</Text>
+            <Text style={styles.statLabel}>Boondocker Tools</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>6</Text>
+            <Text style={styles.statLabel}>Trucker Tools</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>24/7</Text>
+            <Text style={styles.statLabel}>Weather Alerts</Text>
           </View>
         </View>
 
         {/* Feature Sections */}
-        <Text style={styles.sectionHeader}>Features & How-To</Text>
-        
         {guideSections.map((section) => (
           <TouchableOpacity
             key={section.id}
@@ -212,48 +378,71 @@ export default function UserGuideScreen() {
                   {section.description}
                 </Text>
               </View>
-              <Ionicons 
-                name={expandedSection === section.id ? 'chevron-up' : 'chevron-down'} 
-                size={20} 
-                color="#9ca3af" 
-              />
+              <View style={styles.expandIndicator}>
+                <Text style={styles.featureCount}>{section.features.length}</Text>
+                <Ionicons 
+                  name={expandedSection === section.id ? 'chevron-up' : 'chevron-down'} 
+                  size={20} 
+                  color="#9ca3af" 
+                />
+              </View>
             </View>
 
             {expandedSection === section.id && (
               <View style={styles.sectionExpanded}>
-                <View style={styles.stepsContainer}>
-                  <Text style={styles.stepsHeader}>How to use:</Text>
-                  {section.steps.map((step, index) => (
-                    <View key={index} style={styles.stepItem}>
-                      <View style={styles.stepBullet}>
-                        <Text style={styles.stepBulletText}>{index + 1}</Text>
-                      </View>
-                      <Text style={styles.stepItemText}>{step}</Text>
+                {section.features.map((feature, index) => (
+                  <View key={index} style={styles.featureItem}>
+                    <View style={[styles.featureIcon, { backgroundColor: `${section.color}15` }]}>
+                      <Ionicons name={feature.icon as any} size={18} color={section.color} />
                     </View>
-                  ))}
-                </View>
-
-                <View style={styles.tipsContainer}>
-                  <Text style={styles.tipsHeader}>💡 Pro Tips:</Text>
-                  {section.tips.map((tip, index) => (
-                    <View key={index} style={styles.tipItem}>
-                      <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                      <Text style={styles.tipItemText}>{tip}</Text>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureName}>{feature.name}</Text>
+                      <Text style={styles.featureDesc}>{feature.description}</Text>
+                      {feature.tips && feature.tips.length > 0 && (
+                        <View style={styles.tipsBox}>
+                          {feature.tips.map((tip, tipIndex) => (
+                            <View key={tipIndex} style={styles.tipRow}>
+                              <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                              <Text style={styles.tipText}>{tip}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
-                  ))}
-                </View>
+                  </View>
+                ))}
               </View>
             )}
           </TouchableOpacity>
         ))}
 
-        {/* Support Section */}
+        {/* Important Notes */}
+        <View style={styles.notesCard}>
+          <View style={styles.notesHeader}>
+            <Ionicons name="information-circle" size={20} color="#06b6d4" />
+            <Text style={styles.notesTitle}>Important Notes</Text>
+          </View>
+          <View style={styles.noteItem}>
+            <Text style={styles.noteText}>• Weather alerts are capped at 10 alerts from the last 2 hours along your route</Text>
+          </View>
+          <View style={styles.noteItem}>
+            <Text style={styles.noteText}>• Location services must be enabled for auto-detect features</Text>
+          </View>
+          <View style={styles.noteItem}>
+            <Text style={styles.noteText}>• Push notifications require a one-time permission grant</Text>
+          </View>
+          <View style={styles.noteItem}>
+            <Text style={styles.noteText}>• All features included with your subscription - no paywalls</Text>
+          </View>
+        </View>
+
+        {/* Support */}
         <View style={styles.supportCard}>
-          <Ionicons name="help-circle" size={24} color="#8b5cf6" />
+          <Ionicons name="help-buoy" size={24} color="#8b5cf6" />
           <View style={styles.supportInfo}>
-            <Text style={styles.supportTitle}>Need More Help?</Text>
+            <Text style={styles.supportTitle}>Need Help?</Text>
             <Text style={styles.supportText}>
-              Contact support or check our FAQ for additional assistance.
+              Contact support or use the AI chat for assistance with any feature.
             </Text>
           </View>
         </View>
@@ -298,18 +487,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#8b5cf620',
   },
+  welcomeIconRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
   welcomeIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#8b5cf620',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   welcomeTitle: {
     color: '#fff',
@@ -322,53 +514,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  quickStart: {
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    padding: 14,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#27272a',
   },
-  quickStartTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
+  statNumber: {
+    color: '#eab308',
+    fontSize: 22,
+    fontWeight: '800',
   },
-  quickStartSteps: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  quickStep: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepNumberText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  stepText: {
+  statLabel: {
     color: '#9ca3af',
     fontSize: 11,
+    marginTop: 4,
     textAlign: 'center',
-  },
-  sectionHeader: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
   },
   sectionCard: {
     backgroundColor: '#1a1a1a',
@@ -404,69 +573,93 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  expandIndicator: {
+    alignItems: 'center',
+  },
+  featureCount: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
   sectionExpanded: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#27272a',
   },
-  stepsContainer: {
+  featureItem: {
+    flexDirection: 'row',
     marginBottom: 16,
   },
-  stepsHeader: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  stepBullet: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#27272a',
+  featureIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
-  stepBulletText: {
-    color: '#06b6d4',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  stepItemText: {
-    color: '#d4d4d8',
-    fontSize: 14,
+  featureContent: {
     flex: 1,
-    lineHeight: 20,
   },
-  tipsContainer: {
+  featureName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  featureDesc: {
+    color: '#a1a1aa',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  tipsBox: {
+    marginTop: 10,
     backgroundColor: '#0d2818',
     borderRadius: 8,
-    padding: 12,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#22c55e30',
+    borderColor: '#22c55e20',
   },
-  tipsHeader: {
-    color: '#22c55e',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  tipItem: {
+  tipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 6,
+    gap: 6,
   },
-  tipItemText: {
-    color: '#a7f3d0',
-    fontSize: 13,
+  tipText: {
+    color: '#86efac',
+    fontSize: 12,
     flex: 1,
+    lineHeight: 16,
+  },
+  notesCard: {
+    backgroundColor: '#0c1929',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#06b6d420',
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  notesTitle: {
+    color: '#06b6d4',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  noteItem: {
+    marginBottom: 8,
+  },
+  noteText: {
+    color: '#94a3b8',
+    fontSize: 13,
     lineHeight: 18,
   },
   supportCard: {
@@ -475,10 +668,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 16,
-    marginTop: 12,
+    gap: 12,
     borderWidth: 1,
     borderColor: '#8b5cf620',
-    gap: 12,
   },
   supportInfo: {
     flex: 1,
