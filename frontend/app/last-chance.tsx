@@ -354,7 +354,7 @@ export default function LastChanceScreen() {
                         </View>
                       )}
 
-                      <View style={styles.infoNote}>
+                      <View style={styles.infoNoteContainer}>
                         <Ionicons name="information-circle-outline" size={14} color="#9ca3af" />
                         <Text style={styles.infoNoteText}>The business name and details will be shown in Google Maps when you navigate to this location.</Text>
                       </View>
