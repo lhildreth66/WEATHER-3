@@ -155,16 +155,26 @@ export default function ConnectivityScreen() {
             <Text style={styles.title}>Connectivity</Text>
             <Text style={styles.subtitle}>Predict cellular and Starlink signal quality</Text>
 
-            <View style={styles.locationInfo}>
-              <Ionicons name="location" size={16} color="#06b6d4" />
-              <Text style={styles.locationText}>
-                {locationLoading ? 'Getting location...' : `Location: ${latitude}, ${longitude}`}
-              </Text>
-              {!locationLoading && (
-                <TouchableOpacity onPress={refreshLocation} style={styles.refreshBtn}>
-                  <Ionicons name="refresh" size={18} color="#06b6d4" />
+            {/* Location Display with Auto-detect */}
+            <View style={styles.locationBox}>
+              <View style={styles.locationBoxHeader}>
+                <Ionicons name="location" size={18} color="#06b6d4" />
+                <Text style={styles.locationBoxLabel}>Your Location</Text>
+                <TouchableOpacity 
+                  onPress={refreshLocation} 
+                  style={styles.refreshLocationBtn}
+                  disabled={locationLoading}
+                >
+                  {locationLoading ? (
+                    <ActivityIndicator size="small" color="#06b6d4" />
+                  ) : (
+                    <Ionicons name="refresh" size={18} color="#06b6d4" />
+                  )}
                 </TouchableOpacity>
-              )}
+              </View>
+              <Text style={styles.locationBoxCoords}>
+                {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+              </Text>
             </View>
 
             {/* Tab buttons */}
