@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { API_BASE } from '../apiConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface RoadPassabilityRequest {
   precip_72h: number;      // Precipitation in last 72h (mm)
   slope_pct: number;       // Road grade percentage
   min_temp_f: number;      // Minimum temperature (°F)
   soil_type: string;       // clay, sand, rocky, loam
-  subscription_id?: string; // Optional subscription ID for gating
 }
 
 export interface RoadPassabilityResponse {
@@ -24,8 +22,6 @@ export interface RoadPassabilityResponse {
     high_clearance_recommended: boolean;
     four_x_four_recommended: boolean;
   };
-  is_premium_locked: boolean;
-  premium_message?: string;
 }
 
 export interface UseRoadPassabilityReturn {
@@ -43,18 +39,6 @@ export interface UseRoadPassabilityReturn {
  * - Comprehensive risk assessment (mud, ice, clearance)
  * - Vehicle recommendations
  * - Pure deterministic calculations
- * 
- * Usage:
- * ```
- * const { assess, loading, result, error } = useRoadPassability();
- * 
- * const assessment = await assess({
- *   precip_72h: 50,
- *   slope_pct: 8,
- *   min_temp_f: 32,
- *   soil_type: 'clay',
- * });
- * ```
  */
 export const useRoadPassability = (): UseRoadPassabilityReturn => {
   const [loading, setLoading] = useState(false);
@@ -68,13 +52,7 @@ export const useRoadPassability = (): UseRoadPassabilityReturn => {
     setError(null);
 
     try {
-      // Get subscription ID from storage if not provided
-      let subscriptionId = request.subscription_id;
-      if (!subscriptionId) {
-        subscriptionId = await AsyncStorage.getItem('routecast_subscription_id');
-      }
-
-      const response = await fetch(`${API_BASE}/api/pro/road-passability`, {
+      const response = await fetch(`${API_BASE}/api/road-passability`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,7 +62,6 @@ export const useRoadPassability = (): UseRoadPassabilityReturn => {
           slope_pct: request.slope_pct,
           min_temp_f: request.min_temp_f,
           soil_type: request.soil_type,
-          subscription_id: subscriptionId,
         }),
       });
 
@@ -96,15 +73,6 @@ export const useRoadPassability = (): UseRoadPassabilityReturn => {
       }
 
       const data: RoadPassabilityResponse = await response.json();
-
-      // Check if response indicates premium lock
-      if (data.is_premium_locked) {
-        setError(
-          data.premium_message ||
-          'This feature requires Routecast Pro. Upgrade to unlock.'
-        );
-      }
-
       setResult(data);
       return data;
     } catch (err) {
@@ -112,7 +80,6 @@ export const useRoadPassability = (): UseRoadPassabilityReturn => {
         err instanceof Error ? err.message : 'Unknown error assessing road conditions';
       setError(errorMessage);
       console.error('[RoadPassability] Assessment error:', errorMessage);
-
       throw err;
     } finally {
       setLoading(false);
