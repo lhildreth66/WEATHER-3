@@ -436,6 +436,38 @@ export default function UserGuideScreen() {
           </View>
         </View>
 
+        {/* Pricing */}
+        <View style={styles.pricingCard}>
+          <View style={styles.pricingHeader}>
+            <Ionicons name="diamond" size={24} color="#eab308" />
+            <Text style={styles.pricingTitle}>Subscription Plans</Text>
+          </View>
+          <Text style={styles.pricingSubtitle}>Start with a FREE 1-week trial</Text>
+          
+          <View style={styles.pricingOptions}>
+            <View style={styles.pricingOption}>
+              <Text style={styles.pricingAmount}>$9.99</Text>
+              <Text style={styles.pricingPeriod}>per month</Text>
+              <Text style={styles.pricingNote}>Billed monthly</Text>
+            </View>
+            
+            <View style={styles.pricingDivider} />
+            
+            <View style={[styles.pricingOption, styles.pricingBest]}>
+              <View style={styles.saveBadge}>
+                <Text style={styles.saveBadgeText}>SAVE 50%</Text>
+              </View>
+              <Text style={styles.pricingAmount}>$59.99</Text>
+              <Text style={styles.pricingPeriod}>per year</Text>
+              <Text style={styles.pricingNote}>Just $5/month</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.pricingFooter}>
+            All features included • Cancel anytime • Managed by Google Play
+          </Text>
+        </View>
+
         {/* Support */}
         <View style={styles.supportCard}>
           <Ionicons name="help-buoy" size={24} color="#8b5cf6" />
