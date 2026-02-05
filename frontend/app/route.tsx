@@ -718,6 +718,17 @@ export default function RouteScreen() {
           </View>
           <Text style={styles.proFeatureTitle}>Tractor Trailer</Text>
         </TouchableOpacity>
+
+        {/* User Guide */}
+        <TouchableOpacity 
+          style={styles.proFeatureCard}
+          onPress={() => router.push('/user-guide')}
+        >
+          <View style={[styles.proFeatureIcon, { backgroundColor: '#8b5cf6' }]}>
+            <Ionicons name="book" size={20} color="#fff" />
+          </View>
+          <Text style={styles.proFeatureTitle}>Guide</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
