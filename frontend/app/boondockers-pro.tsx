@@ -126,6 +126,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  introText: {
+    color: '#a1a1aa',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   featureGrid: {
     paddingHorizontal: 16,
     paddingBottom: 32,
