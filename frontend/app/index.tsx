@@ -1272,7 +1272,7 @@ export default function HomeScreen() {
               
               {/* Input */}
               <View style={styles.chatInputRow}>
-                <TextInput
+                <NoAutofillInput
                   style={styles.chatInputFull}
                   placeholder="Type your question here..."
                   placeholderTextColor="#6b7280"
@@ -1280,9 +1280,6 @@ export default function HomeScreen() {
                   onChangeText={setChatMessage}
                   onSubmitEditing={() => sendChatMessage()}
                   returnKeyType="send"
-                  autoComplete="off"
-                  autoCorrect={false}
-                  textContentType="none"
                 />
                 <TouchableOpacity 
                   style={[styles.chatSendBtn, !chatMessage.trim() && styles.chatSendBtnDisabled]}
