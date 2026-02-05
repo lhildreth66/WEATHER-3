@@ -4,7 +4,7 @@ import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE } from './apiConfig';
+import { API_BASE } from '../lib/apiConfig';
 
 export default function PropaneUsageScreen() {
   const router = useRouter();

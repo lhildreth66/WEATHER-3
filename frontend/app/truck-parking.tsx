@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE } from './apiConfig';
+import { API_BASE } from '../lib/apiConfig';
 
 interface ParkingSpot {
   name: string;
