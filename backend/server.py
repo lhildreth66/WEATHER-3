@@ -161,6 +161,16 @@ class ChatResponse(BaseModel):
     response: str
     suggestions: List[str] = []
 
+class PushTokenRequest(BaseModel):
+    token: str
+    platform: str  # ios, android, web
+    userId: Optional[str] = "anonymous"
+    timestamp: Optional[str] = None
+
+class PushTokenResponse(BaseModel):
+    success: bool
+    message: str
+
 class Waypoint(BaseModel):
     lat: float
     lon: float
