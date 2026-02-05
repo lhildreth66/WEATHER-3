@@ -172,41 +172,27 @@ export default function TruckRestrictionsScreen() {
           <View style={styles.searchCard}>
             <Text style={styles.searchTitle}>Search Location</Text>
             
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Latitude</Text>
-              <TextInput
-                style={styles.input}
-                value={latitude}
-                onChangeText={setLatitude}
-                placeholder="39.7392"
-                placeholderTextColor="#6b7280"
-                keyboardType="decimal-pad"
-              />
+            {/* Location Display with Auto-detect */}
+            <View style={styles.locationBox}>
+              <View style={styles.locationBoxHeader}>
+                <Ionicons name="location" size={18} color="#ec4899" />
+                <Text style={styles.locationBoxLabel}>Your Location</Text>
+                <TouchableOpacity
+                  style={styles.refreshLocationBtn}
+                  onPress={refreshLocation}
+                  disabled={locationLoading}
+                >
+                  {locationLoading ? (
+                    <ActivityIndicator size="small" color="#ec4899" />
+                  ) : (
+                    <Ionicons name="refresh" size={18} color="#ec4899" />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.locationBoxCoords}>
+                {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+              </Text>
             </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Longitude</Text>
-              <TextInput
-                style={styles.input}
-                value={longitude}
-                onChangeText={setLongitude}
-                placeholder="-104.9903"
-                placeholderTextColor="#6b7280"
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={refreshLocation}
-              disabled={locationLoading}
-            >
-              {locationLoading ? (
-                <ActivityIndicator size="small" color="#eab308" />
-              ) : (
-                <Ionicons name="refresh" size={20} color="#eab308" />
-              )}
-            </TouchableOpacity>
           </View>
 
           <View style={styles.inputWrapper}>
