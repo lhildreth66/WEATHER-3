@@ -475,6 +475,32 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontStyle: 'italic',
   },
+  locationBox: {
+    backgroundColor: '#3f3f46',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  locationLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e5e7eb',
+    flex: 1,
+  },
+  refreshLocationBtn: {
+    padding: 4,
+  },
+  locationCoords: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontFamily: 'monospace',
+  },
   inputRow: {
     marginBottom: 16,
   },
