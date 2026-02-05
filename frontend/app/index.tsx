@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
+  TextInputProps,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -14,6 +15,28 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+
+// Custom TextInput that disables browser autofill on web
+const NoAutofillInput = forwardRef<any, TextInputProps>((props, ref) => {
+  if (Platform.OS === 'web') {
+    return (
+      <TextInput
+        {...props}
+        ref={ref}
+        // @ts-ignore - web-specific attributes
+        autoComplete="off"
+        autoCorrect={false}
+        autoCapitalize="none"
+        data-form-type="other"
+        data-lpignore="true"
+        data-1p-ignore="true"
+        aria-autocomplete="none"
+        spellCheck={false}
+      />
+    );
+  }
+  return <TextInput {...props} ref={ref} />;
+});
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
