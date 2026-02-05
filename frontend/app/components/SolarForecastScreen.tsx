@@ -2,7 +2,7 @@
  * Solar Forecast Component
  * 
  * Premium feature component for forecasting daily solar energy generation.
- * Shows how to integrate the useSolarForecast hook and handle premium gating.
+ * Shows how to integrate the useSolarForecast hook.
  */
 
 import React, { useState } from 'react';
