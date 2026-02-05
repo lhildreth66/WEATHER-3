@@ -703,7 +703,7 @@ export default function HomeScreen() {
                   <View style={styles.originIcon}>
                     <Ionicons name="location" size={20} color="#22c55e" />
                   </View>
-                  <TextInput
+                  <NoAutofillInput
                     style={styles.input}
                     placeholder="Enter starting location"
                     placeholderTextColor="#6b7280"
@@ -712,12 +712,6 @@ export default function HomeScreen() {
                     onFocus={() => origin.length >= 2 && setShowOriginSuggestions(originSuggestions.length > 0)}
                     onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 200)}
                     returnKeyType="next"
-                    autoComplete="off"
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    textContentType="none"
-                    importantForAutofill="no"
-                    dataDetectorTypes="none"
                   />
                   {autocompleteLoading && origin.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
