@@ -140,26 +140,40 @@ export default function RVDealershipScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>🚐 Nearest RV Dealerships</Text>
           <Text style={styles.subtitle}>Find RV dealerships, service centers, and parts within 10 miles</Text>
-          <Text style={styles.infoNote}>💡 TIP: If a result shows "Name" or is missing a title, don't worry—tap Navigate and Google Maps will display the business name in directions. We use free map data to keep costs (and pricing) low.</Text>
 
-          {locationLoading && (
-            <View style={styles.loadingLocationBox}>
-              <ActivityIndicator size="small" color="#ec4899" />
-              <Text style={styles.loadingLocationText}>Determining your current location...</Text>
+          {/* Location Display with Auto-detect */}
+          <View style={styles.locationBox}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="location" size={18} color="#ec4899" />
+              <Text style={styles.locationLabel}>Your Location</Text>
+              <TouchableOpacity 
+                onPress={refreshLocation} 
+                style={styles.refreshLocationBtn}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#ec4899" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#ec4899" />
+                )}
+              </TouchableOpacity>
             </View>
-          )}
+            <Text style={styles.locationCoords}>
+              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+            </Text>
+          </View>
 
           <TouchableOpacity 
             onPress={refreshLocation} 
             style={styles.locationButton}
-            disabled={locationLoading}
+            disabled={locationLoading || loading}
           >
-            {locationLoading ? (
-              <ActivityIndicator size="small" color="#ec4899" />
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="refresh" size={18} color="#ec4899" />
-                <Text style={styles.locationButtonText}>Refresh Location & Search</Text>
+                <Ionicons name="search" size={18} color="#fff" />
+                <Text style={styles.locationButtonText}>Search Nearby</Text>
               </>
             )}
           </TouchableOpacity>
