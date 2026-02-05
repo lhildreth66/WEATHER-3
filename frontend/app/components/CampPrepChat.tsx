@@ -293,19 +293,6 @@ const styles = StyleSheet.create({
   userMessageText: {
     color: '#fff',
   },
-  premiumLockBanner: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#3a2a1a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#8b4513',
-  },
-  premiumLockText: {
-    color: '#d4a574',
-    fontSize: 12,
-    textAlign: 'center',
-  },
   payloadCard: {
     marginTop: 8,
     padding: 8,
