@@ -695,12 +695,12 @@ export default function RouteScreen() {
         </Text>
       </View>
 
-      {/* Pro Features Row */}
+      {/* Features Row */}
       <View style={styles.proFeaturesRow}>
         {/* Boondockers */}
         <TouchableOpacity 
           style={styles.proFeatureCard}
-          onPress={() => router.push('/boondockers-pro')}
+          onPress={() => router.push('/boondockers')}
         >
           <View style={[styles.proFeatureIcon, { backgroundColor: '#8b4513' }]}>
             <Ionicons name="bonfire" size={20} color="#fff" />
@@ -711,7 +711,7 @@ export default function RouteScreen() {
         {/* Tractor Trailer */}
         <TouchableOpacity 
           style={styles.proFeatureCard}
-          onPress={() => router.push('/tractor-trailer-pro')}
+          onPress={() => router.push('/tractor-trailer')}
         >
           <View style={[styles.proFeatureIcon, { backgroundColor: '#3b82f6' }]}>
             <Ionicons name="bus" size={20} color="#fff" />
@@ -1961,7 +1961,7 @@ const styles = StyleSheet.create({
   micBtnActive: {
     backgroundColor: '#7f1d1d',
   },
-  // Pro Features Row Styles
+  // Features Row Styles
   proFeaturesRow: {
     flexDirection: 'row',
     gap: 12,
