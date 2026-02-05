@@ -1258,12 +1258,6 @@ export default function HomeScreen() {
                   onSubmitEditing={() => sendChatMessage()}
                   returnKeyType="send"
                 />
-                  placeholderTextColor="#6b7280"
-                  value={chatMessage}
-                  onChangeText={setChatMessage}
-                  onSubmitEditing={() => sendChatMessage()}
-                  returnKeyType="send"
-                />
                 <TouchableOpacity 
                   style={[styles.chatSendBtn, !chatMessage.trim() && styles.chatSendBtnDisabled]}
                   onPress={() => sendChatMessage()}
