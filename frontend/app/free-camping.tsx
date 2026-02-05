@@ -166,37 +166,27 @@ export default function FreeCampingScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>🏕️ Free Camping Finder</Text>
           <Text style={styles.subtitle}>Discover BLM land, National Forest dispersed camping, and other free spots</Text>
-          <Text style={styles.infoNote}>💡 TIP: If a result shows "Name" or is missing a title, don't worry—tap Navigate and Google Maps will display the business name in directions. We use free map data to keep costs (and pricing) low.</Text>
 
-          {locationLoading && (
-            <View style={styles.loadingLocationBox}>
-              <ActivityIndicator size="small" color="#06b6d4" />
-              <Text style={styles.loadingLocationText}>Determining your current location...</Text>
+          {/* Location Display with Auto-detect */}
+          <View style={styles.locationBox}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="location" size={18} color="#06b6d4" />
+              <Text style={styles.locationLabel}>Your Location</Text>
+              <TouchableOpacity 
+                onPress={useCurrentLocation} 
+                style={styles.refreshLocationBtn}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#06b6d4" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#06b6d4" />
+                )}
+              </TouchableOpacity>
             </View>
-          )}
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Latitude</Text>
-            <TextInput
-              value={latitude}
-              onChangeText={setLatitude}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 34.05"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Longitude</Text>
-            <TextInput
-              value={longitude}
-              onChangeText={setLongitude}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., -111.03"
-              placeholderTextColor="#9ca3af"
-            />
+            <Text style={styles.locationCoords}>
+              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
+            </Text>
           </View>
 
           <View style={styles.inputRow}>
