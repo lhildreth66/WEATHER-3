@@ -13,15 +13,17 @@ RouteCast is a React Native/Expo mobile app providing weather-smart route planni
 
 ### Route Weather
 - Enter origin and destination addresses with autocomplete
+- Clear X buttons to quickly clear address inputs
 - View weather conditions along entire route
 - Safety score calculation based on conditions
 - Weather alerts from NWS
 - Turn-by-turn directions
+- Voice "Listen" button for road conditions (hands-free)
 
 ### Boondockers Section
 - Camp Prep Checklist (persistent)
 - Free Camping Finder
-- Casinos Near Me (with address search)
+- Casinos Near Me (with address search + location detect)
 - Walmart Overnight Parking
 - Cracker Barrel locations
 - Dump Station Finder
@@ -35,29 +37,34 @@ RouteCast is a React Native/Expo mobile app providing weather-smart route planni
 - Campsite Suitability Index
 
 ### Truck Drivers Section
-- Truck Stops and Fuel
+- Truck Stops and Fuel (with location detect)
 - Weigh Stations
-- Truck Parking
-- Truck Repair Services
+- Truck Parking (with location detect)
+- Truck Repair Services (with location detect)
 - Low Bridge Clearance Alerts (via Trucker Mode)
 - Weight Restricted Routes info
+- Bridge Height Hazards tab on route page
 
 ### User Experience
 - Clear X buttons on address inputs
+- Location detect button on all POI screens
 - Comprehensive How To Use guide
-- AI Chat Assistant
-- Push Weather Alerts
+- Push Weather Alerts (via external worker)
 - Favorites and Recent routes
+- NO AI chat bubble (removed per user request)
+- Voice alerts for road conditions only (hands-free)
 
 ## Implemented Features (as of Dec 2025)
 
 ### Completed This Session
-1. **Water Budget with 3 Tanks** - Fresh, Gray, Black water tanks with usage calculations
-2. **Casinos Fix** - Improved UX when location unavailable, shows prompt to search
-3. **Bridge Height Hazards Tab** - Added to route page for trucker alerts
-4. **Clear X Buttons** - On origin/destination inputs for quick clearing
-5. **How To Use Page** - Comprehensive guide with step-by-step instructions
-6. **Support Email** - support@routecast.com integrated in How To Use
+1. **AI Chat Bubble Removed** - Removed from both home and route pages
+2. **Truck Services Fixed** - Added address search + location detect button
+3. **Truck Stops Fixed** - Added address search + location detect button  
+4. **Truck Parking Fixed** - Added address search + location detect button
+5. **Water Budget with 3 Tanks** - Fresh, Gray, Black water tanks
+6. **Bridge Height Hazards Tab** - Added to route page
+7. **Clear X Buttons** - On origin/destination inputs
+8. **How To Use Page** - Comprehensive guide with support email
 
 ### Previous Implementation
 - All Boondocker/Trucker API endpoints (Google Places)
@@ -66,47 +73,36 @@ RouteCast is a React Native/Expo mobile app providing weather-smart route planni
 - Backend route weather calculation
 
 ## Known Limitations
-- **Bridge Clearance Alerts**: Currently returns empty (no real bridge database integrated)
-- **Weight Restrictions**: Returns general federal limits only, not location-specific
+- **Bridge Clearance Alerts**: Currently returns empty (no real bridge database integrated yet)
+- **Weight Restrictions**: Returns general federal limits only
 - **Location Detection**: May fail in web preview, use address search as fallback
+
+## Push Notifications
+Push notifications are handled by an **external worker** deployed on Render.com:
+- Worker files: `backend/route_alerts.py`, `backend/run_route_alerts_worker.py`
+- Runs every ~70 minutes via cron
+- Also triggered on-demand when user saves/starts monitoring a route
+- Uses Firebase/Expo for push delivery
+- MongoDB stores route monitors and push tokens
 
 ## Environment Variables
 - `MAPBOX_ACCESS_TOKEN` - For geocoding
 - `GOOGLE_API_KEY` - For Places API
 - `MONGO_URL` - Database connection
 
-## API Endpoints
-
-### Core
-- `POST /api/route/weather` - Get route weather forecast
-- `GET /api/geocode/autocomplete` - Address suggestions
-- `GET /api/geocode/reverse` - Coordinates to address
-
-### Boondocking
-- `GET /api/boondocking/casinos` - Find casinos
-- `GET /api/boondocking/places` - Generic POI search
-- `POST /api/water-budget` - Water tank calculations
-- `POST /api/boondocking/solar-forecast` - Solar calculations
-- `POST /api/boondocking/propane-usage` - Propane calculations
-
-### Trucker
-- `GET /api/trucker/truck-stops` - Find truck stops
-- `GET /api/trucker/repair-services` - Find repair shops
-- `GET /api/trucker/weight-restrictions` - Weight limit info
-
 ## Pending Tasks
 
 ### P0 (Critical)
-- Implement real bridge clearance data source
+- Integrate real bridge clearance data (OSM Overpass API as fallback, LCM API for production)
 
 ### P1 (High Priority)
-- Verify all Boondocker/Trucker features with user
-- Add screenshots to User Guide
+- User requested preview URL permanence (need production deployment)
+- Verify all location-based features work properly
 
 ### P2 (Medium Priority)
 - Holistic UI/appearance improvement
 - Refactor server.py into modular routers
-- Extract reusable location search component
+- Add screenshots to User Guide
 
 ### P3 (Low Priority)
 - Location-specific weight restriction data
