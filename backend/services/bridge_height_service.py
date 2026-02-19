@@ -196,7 +196,7 @@ def parse_maxheight(value: str) -> Optional[float]:
                 inches = float(parts[1].strip())
             total_feet = feet + inches / 12
             return feet_to_meters(total_feet)
-        except:
+        except (ValueError, IndexError):
             return None
     
     # Handle metric format
@@ -204,7 +204,7 @@ def parse_maxheight(value: str) -> Optional[float]:
         # Remove unit suffixes
         value = value.replace("m", "").replace("meter", "").replace("meters", "").strip()
         return float(value)
-    except:
+    except ValueError:
         return None
 
 
