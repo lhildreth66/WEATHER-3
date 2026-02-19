@@ -384,12 +384,8 @@ export default function RouteScreen() {
     setExpandedCards(newExpanded);
   };
   
-  // AI Chat state
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', text: string}[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatSuggestions, setChatSuggestions] = useState<string[]>(['Road condition tips', 'Safe driving advice', 'Weather questions']);
+  // Speaking state
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
