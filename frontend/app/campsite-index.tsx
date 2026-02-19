@@ -1,589 +1,208 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import axios from 'axios';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import * as Location from 'expo-location';
 import { API_BASE } from '../lib/apiConfig';
 
-interface CampsiteIndexResult {
-  score: number;
-  breakdown: {
-    wind: number;
-    shade: number;
-    slope: number;
-    access: number;
-    signal: number;
-    passability: number;
-  };
-  explanations: string[];
+interface GeocodeSuggestion { place_name: string; short_name: string; coordinates: [number, number]; }
+
+interface CampsiteResult {
+  location_name: string;
+  overall_score: number;
+  overall_rating: string;
+  factors: { [key: string]: { score: number; rating: string; detail: string } };
+  recommendation: string;
 }
 
 export default function CampsiteIndexScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [locationLoading, setLocationLoading] = useState(false);
-  
-  // Keep manual inputs as fallback
-  const [windGustMph, setWindGustMph] = useState('15');
-  const [shadeScore, setShadeScore] = useState('0.5');
-  const [slopePct, setSlopePct] = useState('8');
-  const [accessScore, setAccessScore] = useState('0.7');
-  const [signalScore, setSignalScore] = useState('0.6');
-  const [passabilityScore, setPassabilityScore] = useState('75');
-  const [useAutoMode, setUseAutoMode] = useState(true);
-
-  const [result, setResult] = useState<CampsiteIndexResult | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<CampsiteResult | null>(null);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    // Get current location on mount
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const location = await Location.getCurrentPositionAsync({});
-          setLatitude(location.coords.latitude.toFixed(4));
-          setLongitude(location.coords.longitude.toFixed(4));
-        }
-      } catch (err) {
-        console.log('Could not get current location');
-      }
-    })();
-  }, []);
+  useEffect(() => { getCurrentLocation(); }, []);
 
-  const refreshLocation = async () => {
-    setLocationLoading(true);
+  const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Location Permission Required',
-          'Please enable location permissions in your device settings to use this feature.',
-          [{ text: 'OK' }]
-        );
-        setLocationLoading(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 10000,
-        distanceInterval: 0,
-      });
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-      setLocationLoading(false);
-      Alert.alert('Location Updated', `Refreshed to: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
-    } catch (err: any) {
-      setLocationLoading(false);
-      Alert.alert(
-        'Location Error',
-        err.message || 'Unable to get your location. Make sure GPS is enabled.',
-        [{ text: 'OK' }]
-      );
-    }
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' });
+      } else { setError('Enable location or search for a city'); }
+    } catch (err) { setError('Enable location or search for a city'); }
+    finally { setGettingLocation(false); }
   };
 
-  const calculateScore = async () => {
-    if (useAutoMode && (!latitude || !longitude)) {
-      Alert.alert('Location Required', 'Please enter coordinates or use current location.');
-      return;
-    }
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, { params: { query: text, limit: 5 } });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) { setSuggestions([]); }
+    } else { setSuggestions([]); setShowSuggestions(false); }
+  };
 
-    setLoading(true);
-    setResult(null);
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
+  };
+
+  const calculate = async () => {
+    if (!currentLocation) { setError('Please select a location'); return; }
+    setLoading(true); setResult(null); setError('');
     try {
-      let response;
-      if (useAutoMode) {
-        // Auto mode: fetch real data from backend
-        response = await axios.post(`${API_BASE}/api/campsite-index/auto`, {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-        });
-      } else {
-        // Manual mode: use user inputs
-        response = await axios.post(`${API_BASE}/api/campsite-index`, {
-          wind_gust_mph: parseFloat(windGustMph),
-          shade_score: parseFloat(shadeScore),
-          slope_pct: parseFloat(slopePct),
-          access_score: parseFloat(accessScore),
-          signal_score: parseFloat(signalScore),
-          road_passability_score: parseFloat(passabilityScore),
-        });
-      }
+      const resp = await axios.post(`${API_BASE}/api/boondocking/campsite-index`, { latitude: currentLocation.lat, longitude: currentLocation.lon });
+      setResult(resp.data);
+    } catch (err: any) { setError(err?.response?.data?.detail || 'Failed to calculate'); }
+    finally { setLoading(false); }
+  };
 
-      setResult(response.data);
-    } catch (error: any) {
-      console.error('Campsite index error:', error);
-      Alert.alert('Error', error?.response?.data?.detail || error?.message || 'Failed to calculate campsite index');
-    } finally {
-      setLoading(false);
+  const getScoreColor = (score: number) => score >= 80 ? '#10b981' : score >= 60 ? '#22c55e' : score >= 40 ? '#eab308' : '#ef4444';
+  const getRatingColor = (rating: string) => {
+    switch (rating.toLowerCase()) {
+      case 'excellent': return '#10b981';
+      case 'good': return '#22c55e';
+      case 'fair': return '#eab308';
+      case 'poor': return '#ef4444';
+      default: return '#6b7280';
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return '#4CAF50'; // Green
-    if (score >= 60) return '#2196F3'; // Blue
-    if (score >= 40) return '#FF9800'; // Orange
-    return '#F44336'; // Red
+  const getFactorIcon = (factor: string): string => {
+    switch (factor) {
+      case 'wind': return 'leaf';
+      case 'weather': return 'cloud';
+      case 'cell_signal': return 'cellular';
+      case 'road_access': return 'car';
+      case 'terrain': return 'trail-sign';
+      case 'shade': return 'sunny';
+      default: return 'analytics';
+    }
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Campsite Index</Text>
-        <Text style={styles.subtitle}>Calculate overall campsite quality score</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#fff" /><Text style={styles.backText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={getCurrentLocation} disabled={gettingLocation}>{gettingLocation ? <ActivityIndicator size="small" color="#8b5cf6" /> : <Ionicons name="locate" size={24} color="#8b5cf6" />}</TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.modeToggle}>
-          <TouchableOpacity
-            style={[styles.modeButton, useAutoMode && styles.modeButtonActive]}
-            onPress={() => setUseAutoMode(true)}
-          >
-            <Text style={[styles.modeButtonText, useAutoMode && styles.modeButtonTextActive]}>
-              Auto
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeButton, !useAutoMode && styles.modeButtonActive]}
-            onPress={() => setUseAutoMode(false)}
-          >
-            <Text style={[styles.modeButtonText, !useAutoMode && styles.modeButtonTextActive]}>
-              Manual
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          <Text style={styles.title}>📊 Campsite Suitability Index</Text>
+          <Text style={styles.subtitle}>Multi-factor analysis of campsite conditions</Text>
 
-        {useAutoMode ? (
-          <>
-            <Text style={styles.sectionTitle}>Location</Text>
-            <Text style={styles.infoText}>
-              Automatic mode fetches real-time data: current wind, terrain slope, tree shade, road access, cell signal, and passability conditions.
-            </Text>
-            
-            {/* Location Display with Auto-detect */}
-            <View style={styles.locationBox}>
-              <View style={styles.locationBoxHeader}>
-                <Ionicons name="location" size={18} color="#eab308" />
-                <Text style={styles.locationBoxLabel}>Your Location</Text>
-                <TouchableOpacity
-                  style={styles.refreshLocationBtn}
-                  onPress={refreshLocation}
-                  disabled={locationLoading || loading}
-                >
-                  {locationLoading ? (
-                    <ActivityIndicator size="small" color="#eab308" />
-                  ) : (
-                    <Ionicons name="refresh" size={18} color="#eab308" />
-                  )}
-                </TouchableOpacity>
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#6b7280" style={{ marginRight: 8 }} />
+              <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" />
+            </View>
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((s, i) => <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectLocation(s)}><Ionicons name="location" size={16} color="#8b5cf6" /><Text style={styles.suggestionText}>{s.place_name}</Text></TouchableOpacity>)}
               </View>
-              <Text style={styles.locationBoxCoords}>
-                {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-              </Text>
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.sectionTitle}>Site Conditions (Manual)</Text>
-            <Text style={styles.infoText}>
-              Manual mode requires you to enter each factor yourself.
-            </Text>
+            )}
+            {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>{currentLocation.name}</Text></View>}
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Wind Gust (mph)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 15"
-                keyboardType="decimal-pad"
-                value={windGustMph}
-                onChangeText={setWindGustMph}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0-40+ mph. Higher wind reduces comfort.</Text>
-            </View>
+          <TouchableOpacity onPress={calculate} style={styles.button} disabled={loading || !currentLocation}>
+            {loading ? <ActivityIndicator color="#1a1a1a" /> : <><Ionicons name="analytics" size={20} color="#1a1a1a" /><Text style={styles.buttonText}>Calculate Index</Text></>}
+          </TouchableOpacity>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Shade Score (0-1)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 0.5"
-                keyboardType="decimal-pad"
-                value={shadeScore}
-                onChangeText={setShadeScore}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0 = no shade, 1 = full shade coverage</Text>
-            </View>
+          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Slope (%)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 8"
-                keyboardType="decimal-pad"
-                value={slopePct}
-                onChangeText={setSlopePct}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0% = flat, 25%+ = steep. Steeper slopes are harder to set up.</Text>
-            </View>
+          {result && (
+            <View style={styles.resultContainer}>
+              <View style={styles.resultHeader}><Text style={styles.resultLocation}>{result.location_name}</Text></View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Access Score (0-1)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 0.7"
-                keyboardType="decimal-pad"
-                value={accessScore}
-                onChangeText={setAccessScore}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0 = poor road/parking access, 1 = excellent</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Signal Score (0-1)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 0.6"
-                keyboardType="decimal-pad"
-                value={signalScore}
-                onChangeText={setSignalScore}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0 = no signal, 1 = excellent connectivity</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Road Passability Score (0-100)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 75"
-                keyboardType="decimal-pad"
-                value={passabilityScore}
-                onChangeText={setPassabilityScore}
-                editable={!loading}
-              />
-              <Text style={styles.hint}>0 = impassable, 100 = easily drivable</Text>
-            </View>
-          </>
-        )}
-      </View>
-
-      <View style={styles.buttonGroup}>
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={calculateScore}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Calculate Score</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {result && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Campsite Score</Text>
-          <Text
-            style={[
-              styles.resultScore,
-              { color: getScoreColor(result.score) },
-            ]}
-          >
-            {result.score}/100
-          </Text>
-
-          <Text style={styles.breakdownTitle}>Factor Breakdown</Text>
-          {Object.entries(result.breakdown).map(([factor, value]) => (
-            <View key={factor} style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>{factor.charAt(0).toUpperCase() + factor.slice(1)}</Text>
-              <Text style={styles.breakdownValue}>{Math.round(value)}</Text>
-            </View>
-          ))}
-
-          {result.explanations && result.explanations.length > 0 && (
-            <>
-              <Text style={styles.explanationsTitle}>Insights</Text>
-              {result.explanations.map((explanation, idx) => (
-                <View key={idx} style={styles.explanationItem}>
-                  <Text style={styles.explanationBullet}>•</Text>
-                  <Text style={styles.explanationText}>{explanation}</Text>
+              <View style={styles.scoreSection}>
+                <View style={styles.scoreCircle}>
+                  <Text style={[styles.scoreValue, { color: getScoreColor(result.overall_score) }]}>{result.overall_score}</Text>
+                  <Text style={styles.scoreMax}>/100</Text>
                 </View>
-              ))}
-            </>
+                <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(result.overall_rating) + '30' }]}>
+                  <Text style={[styles.ratingText, { color: getRatingColor(result.overall_rating) }]}>{result.overall_rating}</Text>
+                </View>
+              </View>
+
+              <View style={styles.factorsContainer}>
+                <Text style={styles.factorsTitle}>Factors</Text>
+                {Object.entries(result.factors).map(([key, factor]) => (
+                  <View key={key} style={styles.factorRow}>
+                    <View style={styles.factorLeft}>
+                      <Ionicons name={getFactorIcon(key) as any} size={20} color={getRatingColor(factor.rating)} />
+                      <View><Text style={styles.factorName}>{key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</Text><Text style={styles.factorDetail}>{factor.detail}</Text></View>
+                    </View>
+                    <View style={styles.factorRight}>
+                      <Text style={[styles.factorScore, { color: getScoreColor(factor.score) }]}>{factor.score}</Text>
+                      <View style={styles.factorBar}><View style={[styles.factorFill, { width: `${factor.score}%`, backgroundColor: getScoreColor(factor.score) }]} /></View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.recommendationBox}><Text style={styles.recommendationText}>{result.recommendation}</Text></View>
+            </View>
           )}
         </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  header: {
-    backgroundColor: '#1E88E5',
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    marginBottom: 16,
-  },
-  backButton: {
-    marginBottom: 8,
-  },
-  backText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  card: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 12,
-    marginBottom: 16,
-    borderRadius: 8,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#eab30820',
-  },
-  locationBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationBoxLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eab30815',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationBoxCoords: {
-    color: '#eab308',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
-  },
-  hint: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-  },
-  modeToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F0F0',
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 16,
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  modeButtonActive: {
-    backgroundColor: '#1E88E5',
-  },
-  modeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  modeButtonTextActive: {
-    color: '#FFF',
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  coordInput: {
-    flex: 1,
-  },
-  refreshLocationButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    marginHorizontal: 12,
-    marginBottom: 40,
-    gap: 8,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#1E88E5',
-  },
-  secondaryButton: {
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#1E88E5',
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  buttonTextSecondary: {
-    color: '#1E88E5',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  resultCard: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 12,
-    marginBottom: 24,
-    borderRadius: 8,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  resultScore: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  breakdownTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-  },
-  breakdownLabel: {
-    fontSize: 13,
-    color: '#555',
-  },
-  breakdownValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-  },
-  explanationsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  explanationItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  explanationBullet: {
-    color: '#1E88E5',
-    fontSize: 14,
-    marginRight: 8,
-    fontWeight: 'bold',
-  },
-  explanationText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#555',
-    lineHeight: 18,
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  content: { flex: 1 },
+  card: { backgroundColor: '#18181b', borderRadius: 16, padding: 20, margin: 16, borderWidth: 1, borderColor: '#27272a' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  subtitle: { color: '#a1a1aa', fontSize: 14, marginTop: 4, marginBottom: 12 },
+  searchSection: { marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  button: { backgroundColor: '#8b5cf6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 10 },
+  buttonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  errorBox: { backgroundColor: '#450a0a', borderRadius: 8, padding: 12, marginTop: 12 },
+  errorText: { color: '#fca5a5', fontSize: 14 },
+  resultContainer: { marginTop: 20, gap: 16 },
+  resultHeader: { alignItems: 'center' },
+  resultLocation: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  scoreSection: { alignItems: 'center', gap: 8 },
+  scoreCircle: { flexDirection: 'row', alignItems: 'baseline' },
+  scoreValue: { fontSize: 48, fontWeight: '800' },
+  scoreMax: { fontSize: 20, color: '#6b7280' },
+  ratingBadge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 16 },
+  ratingText: { fontSize: 16, fontWeight: '700' },
+  factorsContainer: { backgroundColor: '#1f1f23', borderRadius: 12, padding: 16, gap: 12 },
+  factorsTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  factorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#27272a' },
+  factorLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  factorName: { color: '#e4e4e7', fontSize: 14, fontWeight: '600' },
+  factorDetail: { color: '#9ca3af', fontSize: 11, maxWidth: 150 },
+  factorRight: { alignItems: 'flex-end', gap: 4 },
+  factorScore: { fontSize: 16, fontWeight: '700' },
+  factorBar: { width: 60, height: 4, backgroundColor: '#3f3f46', borderRadius: 2, overflow: 'hidden' },
+  factorFill: { height: '100%', borderRadius: 2 },
+  recommendationBox: { backgroundColor: '#1e3a5f', borderRadius: 10, padding: 14 },
+  recommendationText: { color: '#93c5fd', fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });

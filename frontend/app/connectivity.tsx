@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, TextInput } from 'react-native';
 import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { API_BASE } from '../lib/apiConfig';
+
+interface GeocodeSuggestion { place_name: string; short_name: string; coordinates: [number, number]; }
 
 interface CarrierInfo {
   name: string;
@@ -18,8 +20,6 @@ interface CarrierInfo {
 }
 
 interface ConnectivityResult {
-  latitude: number;
-  longitude: number;
   location_name: string;
   carriers: CarrierInfo[];
   overall_rating: string;
@@ -28,95 +28,62 @@ interface ConnectivityResult {
 
 export default function ConnectivityScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(true);
   const [result, setResult] = useState<ConnectivityResult | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    getCurrentLocation();
-  }, []);
+  useEffect(() => { getCurrentLocation(); }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setLatitude(location.coords.latitude.toFixed(4));
-        setLongitude(location.coords.longitude.toFixed(4));
-      }
-    } catch (err) {
-      console.log('Could not get current location:', err);
-    } finally {
-      setLocationLoading(false);
-    }
+        const loc = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' });
+      } else { setError('Enable location or search for a city'); }
+    } catch (err) { setError('Enable location or search for a city'); }
+    finally { setGettingLocation(false); }
   };
 
-  const refreshLocation = async () => {
-    setLocationLoading(true);
-    setResult(null);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required.');
-        setLocationLoading(false);
-        return;
-      }
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, { params: { query: text, limit: 5 } });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) { setSuggestions([]); }
+    } else { setSuggestions([]); setShowSuggestions(false); }
+  };
 
-      const location = await Location.getCurrentPositionAsync({});
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-    } catch (err) {
-      Alert.alert('Error', 'Failed to refresh location');
-    } finally {
-      setLocationLoading(false);
-    }
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
   };
 
   const checkConnectivity = async () => {
-    if (!latitude || !longitude) {
-      setError('Location required');
-      return;
-    }
-
-    setLoading(true);
-    setResult(null);
-    setError('');
+    if (!currentLocation) { setError('Please select a location'); return; }
+    setLoading(true); setResult(null); setError('');
     try {
-      const resp = await axios.get(`${API_BASE}/api/boondocking/connectivity`, {
-        params: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-        },
-      });
+      const resp = await axios.get(`${API_BASE}/api/boondocking/connectivity`, { params: { latitude: currentLocation.lat, longitude: currentLocation.lon } });
       setResult(resp.data);
-    } catch (err: any) {
-      console.error('Connectivity check error:', err);
-      setError(err?.response?.data?.detail || 'Failed to check connectivity');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { setError(err?.response?.data?.detail || 'Failed to check connectivity'); }
+    finally { setLoading(false); }
   };
 
-  const getSignalBars = (bars: number) => {
-    const filled = Math.min(5, Math.max(0, bars));
-    return (
-      <View style={styles.signalBars}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <View
-            key={i}
-            style={[
-              styles.signalBar,
-              { height: 6 + i * 4 },
-              i <= filled ? styles.signalBarFilled : styles.signalBarEmpty,
-            ]}
-          />
-        ))}
-      </View>
-    );
-  };
+  const getSignalBars = (bars: number) => (
+    <View style={styles.signalBars}>
+      {[1, 2, 3, 4, 5].map((i) => <View key={i} style={[styles.signalBar, { height: 6 + i * 4 }, i <= bars ? styles.signalBarFilled : styles.signalBarEmpty]} />)}
+    </View>
+  );
 
   const getSignalColor = (strength: string) => {
     switch (strength.toLowerCase()) {
@@ -124,70 +91,47 @@ export default function ConnectivityScreen() {
       case 'good': return '#22c55e';
       case 'fair': return '#eab308';
       case 'weak': return '#f59e0b';
-      case 'poor': return '#ef4444';
-      default: return '#6b7280';
+      default: return '#ef4444';
     }
-  };
-
-  const getCarrierIcon = (name: string) => {
-    if (name === 'Starlink') return 'planet';
-    return 'cellular';
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={refreshLocation} disabled={locationLoading}>
-          {locationLoading ? (
-            <ActivityIndicator size="small" color="#60a5fa" />
-          ) : (
-            <Ionicons name="locate" size={24} color="#60a5fa" />
-          )}
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#fff" /><Text style={styles.backText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={getCurrentLocation} disabled={gettingLocation}>{gettingLocation ? <ActivityIndicator size="small" color="#60a5fa" /> : <Ionicons name="locate" size={24} color="#60a5fa" />}</TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.title}>📡 Connectivity Check</Text>
-          <Text style={styles.subtitle}>Check cell signal and internet options at your location</Text>
+          <Text style={styles.subtitle}>Check cell signal estimates for your location</Text>
 
-          {latitude && longitude && (
-            <View style={styles.locationBadge}>
-              <Ionicons name="location" size={14} color="#60a5fa" />
-              <Text style={styles.locationText}>{latitude}, {longitude}</Text>
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#6b7280" style={{ marginRight: 8 }} />
+              <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" />
             </View>
-          )}
-
-          <TouchableOpacity onPress={checkConnectivity} style={styles.button} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#1a1a1a" />
-            ) : (
-              <>
-                <Ionicons name="wifi" size={20} color="#1a1a1a" />
-                <Text style={styles.buttonText}>Check Signal</Text>
-              </>
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((s, i) => <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectLocation(s)}><Ionicons name="location" size={16} color="#60a5fa" /><Text style={styles.suggestionText}>{s.place_name}</Text></TouchableOpacity>)}
+              </View>
             )}
+            {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>{currentLocation.name}</Text></View>}
+          </View>
+
+          <TouchableOpacity onPress={checkConnectivity} style={styles.button} disabled={loading || !currentLocation}>
+            {loading ? <ActivityIndicator color="#1a1a1a" /> : <><Ionicons name="wifi" size={20} color="#1a1a1a" /><Text style={styles.buttonText}>Check Signal</Text></>}
           </TouchableOpacity>
 
-          {error && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={20} color="#fca5a5" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
           {result && (
             <View style={styles.resultContainer}>
               <View style={styles.resultHeader}>
                 <Text style={styles.resultLocation}>{result.location_name}</Text>
                 <View style={[styles.overallBadge, { backgroundColor: getSignalColor(result.overall_rating) + '30' }]}>
-                  <Text style={[styles.overallText, { color: getSignalColor(result.overall_rating) }]}>
-                    {result.overall_rating}
-                  </Text>
+                  <Text style={[styles.overallText, { color: getSignalColor(result.overall_rating) }]}>{result.overall_rating}</Text>
                 </View>
               </View>
 
@@ -195,45 +139,28 @@ export default function ConnectivityScreen() {
                 {result.carriers.map((carrier, index) => (
                   <View key={index} style={styles.carrierCard}>
                     <View style={styles.carrierHeader}>
-                      <Ionicons 
-                        name={getCarrierIcon(carrier.name) as any} 
-                        size={24} 
-                        color={getSignalColor(carrier.signal_strength)} 
-                      />
+                      <Ionicons name={carrier.satellite ? 'planet' : 'cellular'} size={24} color={getSignalColor(carrier.signal_strength)} />
                       <Text style={styles.carrierName}>{carrier.name}</Text>
                       {getSignalBars(carrier.signal_bars)}
                     </View>
                     <View style={styles.carrierDetails}>
                       <View style={[styles.strengthBadge, { backgroundColor: getSignalColor(carrier.signal_strength) + '30' }]}>
-                        <Text style={[styles.strengthText, { color: getSignalColor(carrier.signal_strength) }]}>
-                          {carrier.signal_strength}
-                        </Text>
+                        <Text style={[styles.strengthText, { color: getSignalColor(carrier.signal_strength) }]}>{carrier.signal_strength}</Text>
                       </View>
-                      {carrier.lte_available && (
-                        <View style={styles.techBadge}>
-                          <Text style={styles.techText}>LTE</Text>
-                        </View>
-                      )}
-                      {carrier['5g_available'] && (
-                        <View style={[styles.techBadge, styles.techBadge5g]}>
-                          <Text style={styles.techText}>5G</Text>
-                        </View>
-                      )}
-                      {carrier.satellite && (
-                        <View style={[styles.techBadge, styles.techBadgeSat]}>
-                          <Text style={styles.techText}>SAT</Text>
-                        </View>
-                      )}
+                      {carrier.lte_available && <View style={styles.techBadge}><Text style={styles.techText}>LTE</Text></View>}
+                      {carrier['5g_available'] && <View style={[styles.techBadge, styles.techBadge5g]}><Text style={styles.techText}>5G</Text></View>}
+                      {carrier.satellite && <View style={[styles.techBadge, styles.techBadgeSat]}><Text style={styles.techText}>SAT</Text></View>}
                     </View>
-                    {carrier.note && (
-                      <Text style={styles.carrierNote}>{carrier.note}</Text>
-                    )}
+                    {carrier.note && <Text style={styles.carrierNote}>{carrier.note}</Text>}
                   </View>
                 ))}
               </View>
 
-              <View style={styles.recommendationBox}>
-                <Text style={styles.recommendationText}>{result.recommendation}</Text>
+              <View style={styles.recommendationBox}><Text style={styles.recommendationText}>{result.recommendation}</Text></View>
+              
+              <View style={styles.disclaimer}>
+                <Ionicons name="information-circle" size={16} color="#6b7280" />
+                <Text style={styles.disclaimerText}>Signal estimates based on location type. Actual coverage may vary. For accurate data, check carrier coverage maps.</Text>
               </View>
             </View>
           )}
@@ -252,12 +179,18 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#18181b', borderRadius: 16, padding: 20, margin: 16, borderWidth: 1, borderColor: '#27272a' },
   title: { color: '#fff', fontSize: 22, fontWeight: '800' },
   subtitle: { color: '#a1a1aa', fontSize: 14, marginTop: 4, marginBottom: 12 },
-  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#27272a', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 16 },
-  locationText: { color: '#d4d4d8', fontSize: 12 },
+  searchSection: { marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
   button: { backgroundColor: '#3b82f6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 10 },
   buttonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#450a0a', borderRadius: 8, padding: 12, marginTop: 12 },
-  errorText: { color: '#fca5a5', fontSize: 14, flex: 1 },
+  errorBox: { backgroundColor: '#450a0a', borderRadius: 8, padding: 12, marginTop: 12 },
+  errorText: { color: '#fca5a5', fontSize: 14 },
   resultContainer: { marginTop: 20, gap: 16 },
   resultHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   resultLocation: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1 },
@@ -281,4 +214,6 @@ const styles = StyleSheet.create({
   carrierNote: { color: '#9ca3af', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   recommendationBox: { backgroundColor: '#1e3a5f', borderRadius: 10, padding: 14 },
   recommendationText: { color: '#93c5fd', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  disclaimerText: { color: '#6b7280', fontSize: 11, flex: 1 },
 });
