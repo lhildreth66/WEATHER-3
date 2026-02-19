@@ -2664,45 +2664,105 @@ async def find_truck_parking(latitude: float, longitude: float, radius_miles: in
 
 @api_router.get("/trucker/low-clearance")
 async def find_low_clearances(latitude: float, longitude: float, vehicle_height_ft: float = 13.5, radius_miles: int = 20):
-    """Find low clearance warnings for trucks."""
+    """Find low clearance warnings for trucks using OpenStreetMap data."""
     
-    # In production, this would use a specialized trucking API or DOT data
-    # For now, search for bridges and underpasses that may have restrictions
-    radius_meters = int(radius_miles * 1609.34)
+    from services.bridge_height_service import query_overpass_for_clearances, extract_bridge_data, meters_to_feet
     
-    results = await search_places_text(
-        "underpass bridge overpass tunnel",
-        latitude, longitude, radius_meters
-    )
+    # Create a simple bounding box from the center point
+    buffer = radius_miles / 69.0  # Approximate degrees per mile
+    bbox_points = [
+        (latitude - buffer, longitude - buffer),
+        (latitude - buffer, longitude + buffer),
+        (latitude + buffer, longitude - buffer),
+        (latitude + buffer, longitude + buffer),
+        (latitude, longitude)  # Center point
+    ]
     
-    clearances = []
-    for r in results[:10]:
-        # Estimate clearance (in real app, would use DOT database)
-        estimated_clearance = 14.0  # Default assumption
+    try:
+        # Query Overpass API
+        osm_elements = await query_overpass_for_clearances(bbox_points)
+        bridges = extract_bridge_data(osm_elements, bbox_points)
         
-        warning_level = "safe"
-        if estimated_clearance < vehicle_height_ft:
-            warning_level = "danger"
-        elif estimated_clearance < vehicle_height_ft + 0.5:
-            warning_level = "caution"
+        clearances = []
+        for bridge in bridges:
+            # Calculate distance from search point
+            from services.bridge_height_service import haversine_distance
+            distance = haversine_distance(latitude, longitude, bridge.latitude, bridge.longitude)
+            
+            if distance > radius_miles:
+                continue
+            
+            margin = bridge.clearance_ft - vehicle_height_ft
+            
+            if margin < 0:
+                warning_level = "danger"
+            elif margin < 1.0:
+                warning_level = "caution"
+            else:
+                warning_level = "safe"
+            
+            clearances.append({
+                "location": bridge.location_name,
+                "address": f"OSM ID: {bridge.osm_id}",
+                "latitude": bridge.latitude,
+                "longitude": bridge.longitude,
+                "clearance_ft": round(bridge.clearance_ft, 1),
+                "vehicle_height_ft": vehicle_height_ft,
+                "margin_ft": round(margin, 1),
+                "distance_miles": round(distance, 1),
+                "warning_level": warning_level,
+                "source": bridge.source,
+                "confidence": bridge.confidence,
+                "note": "Data from OpenStreetMap - verify with posted signage"
+            })
         
-        clearances.append({
-            "location": r.name,
-            "address": r.address,
-            "latitude": r.latitude,
-            "longitude": r.longitude,
-            "clearance_ft": estimated_clearance,
-            "vehicle_height_ft": vehicle_height_ft,
-            "distance_miles": r.distance_miles,
-            "warning_level": warning_level,
-            "note": "Verify clearance with local signage - data is estimated"
-        })
-    
-    return {
-        "results": clearances,
-        "total": len(clearances),
-        "warning": "Always verify clearances with posted signage. This data is estimated."
-    }
+        # Sort by distance
+        clearances.sort(key=lambda x: x["distance_miles"])
+        
+        return {
+            "results": clearances[:20],  # Limit to 20 results
+            "total": len(clearances),
+            "source": "OpenStreetMap Overpass API",
+            "warning": "Always verify clearances with posted signage. OSM data may not be complete."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in low-clearance endpoint: {e}")
+        # Fallback to basic search
+        radius_meters = int(radius_miles * 1609.34)
+        
+        results = await search_places_text(
+            "underpass bridge overpass tunnel",
+            latitude, longitude, radius_meters
+        )
+        
+        clearances = []
+        for r in results[:10]:
+            estimated_clearance = 14.0  # Default assumption
+            
+            warning_level = "safe"
+            if estimated_clearance < vehicle_height_ft:
+                warning_level = "danger"
+            elif estimated_clearance < vehicle_height_ft + 0.5:
+                warning_level = "caution"
+            
+            clearances.append({
+                "location": r.name,
+                "address": r.address,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "clearance_ft": estimated_clearance,
+                "vehicle_height_ft": vehicle_height_ft,
+                "distance_miles": r.distance_miles,
+                "warning_level": warning_level,
+                "note": "Clearance is ESTIMATED - verify with local signage"
+            })
+        
+        return {
+            "results": clearances,
+            "total": len(clearances),
+            "warning": "Using estimated data - always verify clearances with posted signage."
+        }
 
 @api_router.get("/trucker/repair-services", response_model=PlacesSearchResponse)
 async def find_truck_repair(latitude: float, longitude: float, radius_miles: int = 30):
