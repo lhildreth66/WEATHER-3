@@ -1,396 +1,148 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Alert, Linking, RefreshControl } from 'react-native';
-import axios from 'axios';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import axios from 'axios';
 import { API_BASE } from '../lib/apiConfig';
 
-interface SupplyPoint {
+interface PlaceResult {
   name: string;
-  type: string; // 'Grocery', 'Propane', 'Hardware'
-  subtype: string; // 'Supermarket', 'Gas Station', 'Hardware Store', etc.
-  distance_miles: number;
+  address: string;
   latitude: number;
   longitude: number;
-  description: string;
-  hours: string;
-  phone: string;
-  amenities: string[];
-  rating: number;
-  address?: string;
-  website?: string;
+  rating: number | null;
+  distance_miles: number | null;
+  is_open: boolean | null;
+  place_id: string;
+}
+
+interface GeocodeSuggestion {
+  place_name: string;
+  short_name: string;
+  coordinates: [number, number];
 }
 
 export default function LastChanceScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('34.05');
-  const [longitude, setLongitude] = useState('-111.03');
-  const [searchRadius, setSearchRadius] = useState('75'); // miles - large radius for "last chance"
+  const [results, setResults] = useState<PlaceResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(true);
-  const [supplies, setSupplies] = useState<SupplyPoint[]>([]);
-  const [error, setError] = useState<string>('');
-  const [expandedSupplies, setExpandedSupplies] = useState(new Set<number>());
-  const [filterType, setFilterType] = useState<'all' | 'grocery' | 'propane' | 'hardware'>('all');
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Automatically get current location on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status} = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const location = await Location.getCurrentPositionAsync({});
-          setLatitude(location.coords.latitude.toFixed(4));
-          setLongitude(location.coords.longitude.toFixed(4));
-        }
-      } catch (err) {
-        console.log('Could not get current location, using defaults');
-      } finally {
-        setLocationLoading(false);
-      }
-    })();
-  }, []);
+  useEffect(() => { getCurrentLocation(); }, []);
 
-  const useCurrentLocation = async () => {
+  const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to use current location.');
-        return;
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCurrentLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' });
+        searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else {
+        setError('Enable location or search for a city above');
       }
-
-      const location = await Location.getCurrentPositionAsync({});
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-      Alert.alert('Location Updated', `Using current position: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
     } catch (err) {
-      Alert.alert('Error', 'Failed to get current location');
+      setError('Enable location or search for a city above');
+    } finally {
+      setGettingLocation(false);
     }
   };
 
-  const searchSupplies = async () => {
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, { params: { query: text, limit: 5 } });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) { setSuggestions([]); }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
+    searchPlaces(lat, lon);
+  };
+
+  const searchPlaces = async (lat: number, lon: number) => {
     setLoading(true);
-    setSupplies([]);
     setError('');
     try {
-      const resp = await axios.get(`${API_BASE}/api/boondocking/groceries`, {
-        params: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          radius_miles: parseInt(searchRadius, 10),
-        },
-      });
-      // Map API response to expected format
-      const mappedSupplies = (resp.data.results || []).map((place: any) => ({
-        name: place.name,
-        distance_miles: place.distance_miles,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        rating: place.rating,
-        address: place.address,
-        type: 'Grocery Store',
-      }));
-      setSupplies(mappedSupplies);
+      const response = await axios.get(`${API_BASE}/api/boondocking/groceries`, { params: { latitude: lat, longitude: lon, radius_miles: 75 } });
+      setResults(response.data.results || []);
+      if (response.data.results?.length === 0) setError('No grocery stores found within 75 miles');
     } catch (err: any) {
-      console.error('Last chance search error:', err);
-      setError(err?.response?.data?.detail || err?.message || 'Failed to find supply points');
+      setError(err?.response?.data?.detail || 'Failed to search');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const toggleSupplyExpand = (index: number) => {
-    const newExpanded = new Set(expandedSupplies);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedSupplies(newExpanded);
-  };
-
-  const openInMaps = (supply: SupplyPoint) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${supply.latitude},${supply.longitude}`;
-    Linking.openURL(url);
-  };
-
-  const callPhone = (phone: string) => {
-    if (phone && phone !== 'N/A') {
-      Linking.openURL(`tel:${phone}`);
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Grocery': return 'cart';
-      case 'Propane': return 'flame';
-      case 'Hardware': return 'hammer';
-      default: return 'storefront';
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Grocery': return '#22c55e';
-      case 'Propane': return '#f97316';
-      case 'Hardware': return '#3b82f6';
-      default: return '#9ca3af';
-    }
-  };
-
-  const filteredSupplies = supplies.filter(s => 
-    filterType === 'all' || s.type.toLowerCase() === filterType
-  );
+  const onRefresh = () => { setRefreshing(true); currentLocation ? searchPlaces(currentLocation.lat, currentLocation.lon) : getCurrentLocation(); };
+  const openInMaps = (place: PlaceResult) => { Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`); };
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#fff" /><Text style={styles.backText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={getCurrentLocation} disabled={gettingLocation}>{gettingLocation ? <ActivityIndicator size="small" color="#22c55e" /> : <Ionicons name="locate" size={24} color="#22c55e" />}</TouchableOpacity>
+      </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.title}>🏪 Last Chance Supplies</Text>
-          <Text style={styles.subtitle}>Find grocery, propane, and hardware stores before going remote</Text>
-
-          {/* Location Display with Auto-detect */}
-          <View style={styles.locationBox}>
-            <View style={styles.locationHeader}>
-              <Ionicons name="location" size={18} color="#f59e0b" />
-              <Text style={styles.locationLabel}>Your Location</Text>
-              <TouchableOpacity 
-                onPress={useCurrentLocation} 
-                style={styles.refreshLocationBtn}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator size="small" color="#f59e0b" />
-                ) : (
-                  <Ionicons name="refresh" size={18} color="#f59e0b" />
-                )}
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.locationCoords}>
-              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-            </Text>
-          </View>
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Search Radius (miles)</Text>
-            <TextInput
-              value={searchRadius}
-              onChangeText={setSearchRadius}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 75"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={searchSupplies}
-            style={[styles.calculateButton, loading && styles.buttonDisabled]}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="search" size={20} color="#fff" />
-                <Text style={styles.calculateButtonText}>Find Supply Points</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />} keyboardShouldPersistTaps="handled">
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>🛒 Last Chance Supplies</Text>
+          <Text style={styles.subtitle}>Stock up on groceries before heading off-grid (75 mile radius)</Text>
         </View>
 
-        {/* Filter Buttons */}
-        {supplies.length > 0 && (
-          <View style={styles.filterContainer}>
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'all' && styles.filterButtonActive]}
-              onPress={() => setFilterType('all')}
-            >
-              <Text style={[styles.filterButtonText, filterType === 'all' && styles.filterButtonTextActive]}>
-                All ({supplies.length})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'grocery' && styles.filterButtonActive]}
-              onPress={() => setFilterType('grocery')}
-            >
-              <Ionicons name="cart" size={16} color={filterType === 'grocery' ? '#fff' : '#22c55e'} />
-              <Text style={[styles.filterButtonText, filterType === 'grocery' && styles.filterButtonTextActive]}>
-                Grocery ({supplies.filter(s => s.type === 'Grocery').length})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'propane' && styles.filterButtonActive]}
-              onPress={() => setFilterType('propane')}
-            >
-              <Ionicons name="flame" size={16} color={filterType === 'propane' ? '#fff' : '#f97316'} />
-              <Text style={[styles.filterButtonText, filterType === 'propane' && styles.filterButtonTextActive]}>
-                Propane ({supplies.filter(s => s.type === 'Propane').length})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'hardware' && styles.filterButtonActive]}
-              onPress={() => setFilterType('hardware')}
-            >
-              <Ionicons name="hammer" size={16} color={filterType === 'hardware' ? '#fff' : '#3b82f6'} />
-              <Text style={[styles.filterButtonText, filterType === 'hardware' && styles.filterButtonTextActive]}>
-                Hardware ({supplies.filter(s => s.type === 'Hardware').length})
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#6b7280" style={{ marginRight: 8 }} />
+            <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" />
+            {searchQuery.length > 0 && <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}><Ionicons name="close-circle" size={20} color="#6b7280" /></TouchableOpacity>}
           </View>
-        )}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((s, i) => <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectLocation(s)}><Ionicons name="location" size={16} color="#22c55e" /><Text style={styles.suggestionText}>{s.place_name}</Text></TouchableOpacity>)}
+            </View>
+          )}
+          {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>Searching near: {currentLocation.name}</Text></View>}
+        </View>
 
-        {/* Results */}
-        {filteredSupplies.length > 0 && (
+        {loading ? (
+          <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#22c55e" /><Text style={styles.loadingText}>Finding grocery stores...</Text></View>
+        ) : error && results.length === 0 ? (
+          <View style={styles.errorContainer}><Ionicons name="alert-circle" size={48} color="#f59e0b" /><Text style={styles.errorText}>{error}</Text></View>
+        ) : (
           <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>
-              {filterType === 'all' ? 'All Supply Points' : `${filterType.charAt(0).toUpperCase() + filterType.slice(1)} Stores`}
-            </Text>
-            
-            {filteredSupplies.map((supply, index) => {
-              const isExpanded = expandedSupplies.has(index);
-              
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.supplyCard, isExpanded && styles.supplyCardExpanded]}
-                  onPress={() => toggleSupplyExpand(index)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.supplyHeader}>
-                    <View style={[styles.supplyIcon, { backgroundColor: getTypeColor(supply.type) }]}>
-                      <Ionicons name={getTypeIcon(supply.type) as any} size={24} color="#fff" />
-                    </View>
-                    <View style={styles.supplyHeaderMiddle}>
-                      <Text style={styles.supplyName}>{supply.name}</Text>
-                      <View style={styles.supplyTypeRow}>
-                        <View style={[styles.supplyTypeBadge, { backgroundColor: getTypeColor(supply.type) + '33' }]}>
-                          <Text style={[styles.supplyTypeBadgeText, { color: getTypeColor(supply.type) }]}>
-                            {supply.subtype}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    <Ionicons 
-                      name={isExpanded ? "chevron-up" : "chevron-down"} 
-                      size={24} 
-                      color="#9ca3af" 
-                    />
-                  </View>
-
-                  <View style={styles.supplyQuickInfo}>
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="navigate" size={16} color="#f59e0b" />
-                      <Text style={styles.quickInfoText}>{supply.distance_miles.toFixed(1)} mi</Text>
-                    </View>
-                    {supply.phone !== 'N/A' && (
-                      <TouchableOpacity 
-                        style={styles.quickInfoItem}
-                        onPress={() => callPhone(supply.phone)}
-                      >
-                        <Ionicons name="call" size={16} color="#06b6d4" />
-                        <Text style={[styles.quickInfoText, { color: '#06b6d4' }]}>Call</Text>
-                      </TouchableOpacity>
-                    )}
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="star" size={16} color="#eab308" />
-                      <Text style={styles.quickInfoText}>{supply.rating.toFixed(1)}</Text>
-                    </View>
-                  </View>
-
-                  {isExpanded && (
-                    <View style={styles.supplyDetails}>
-                      <Text style={styles.supplyDescription}>{supply.description}</Text>
-                      
-                      <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>📍 Coordinates:</Text>
-                        <Text style={styles.detailValue}>{supply.latitude.toFixed(4)}, {supply.longitude.toFixed(4)}</Text>
-                      </View>
-
-                      <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>🕐 Hours:</Text>
-                        <Text style={styles.detailValue}>{supply.hours}</Text>
-                      </View>
-
-                      {supply.address && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>📍 Address:</Text>
-                          <Text style={styles.detailValue}>{supply.address}</Text>
-                        </View>
-                      )}
-
-                      {supply.phone !== 'N/A' && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>📞 Phone:</Text>
-                          <TouchableOpacity onPress={() => callPhone(supply.phone)}>
-                            <Text style={[styles.detailValue, { color: '#06b6d4' }]}>{supply.phone}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      {supply.website && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>🌐 Website:</Text>
-                          <TouchableOpacity onPress={() => Linking.openURL(supply.website!)}>
-                            <Text style={[styles.detailValue, { color: '#06b6d4', textDecorationLine: 'underline' }]}>
-                              {supply.website}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      {supply.amenities.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>✨ Services:</Text>
-                          <View style={styles.amenitiesList}>
-                            {supply.amenities.map((amenity, i) => (
-                              <View key={i} style={styles.amenityChip}>
-                                <Text style={styles.amenityText}>{amenity}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      <View style={styles.infoNoteContainer}>
-                        <Ionicons name="information-circle-outline" size={14} color="#9ca3af" />
-                        <Text style={styles.infoNoteText}>The business name and details will be shown in Google Maps when you navigate to this location.</Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.navigateButton}
-                        onPress={() => openInMaps(supply)}
-                      >
-                        <Ionicons name="navigate" size={18} color="#fff" />
-                        <Text style={styles.navigateButtonText}>Navigate with Google Maps</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {supplies.length === 0 && !loading && !error && (
-          <View style={styles.emptyState}>
-            <Ionicons name="search" size={64} color="#3f3f46" />
-            <Text style={styles.emptyStateTitle}>Ready to Search</Text>
-            <Text style={styles.emptyStateText}>Enter your location and search radius, then tap "Find Supply Points"</Text>
+            {results.length > 0 && <Text style={styles.resultsCount}>{results.length} stores found</Text>}
+            {results.map((place, index) => (
+              <TouchableOpacity key={place.place_id || index} style={styles.resultCard} onPress={() => openInMaps(place)} activeOpacity={0.7}>
+                <View style={styles.resultHeader}>
+                  <View style={styles.iconContainer}><Ionicons name="cart" size={24} color="#22c55e" /></View>
+                  <View style={styles.resultInfo}><Text style={styles.resultName}>{place.name}</Text><Text style={styles.resultAddress}>{place.address}</Text></View>
+                </View>
+                <View style={styles.resultMeta}>
+                  <View style={styles.metaItem}><Ionicons name="navigate" size={16} color="#60a5fa" /><Text style={styles.metaText}>{place.distance_miles} mi</Text></View>
+                  {place.rating && <View style={styles.metaItem}><Ionicons name="star" size={16} color="#eab308" /><Text style={styles.metaText}>{place.rating}</Text></View>}
+                </View>
+                <View style={styles.tapHint}><Ionicons name="map" size={16} color="#60a5fa" /><Text style={styles.tapHintText}>Tap for directions</Text></View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -399,384 +151,37 @@ export default function LastChanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#18181b',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  card: {
-    backgroundColor: '#27272a',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 16,
-  },
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#f59e0b20',
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f59e0b15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationCoords: {
-    color: '#f59e0b',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  infoNote: {
-    fontSize: 12,
-    color: '#fbbf24',
-    marginBottom: 16,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#e5e7eb',
-    flex: 1,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  locationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#f59e0b',
-  },
-  loadingLocationBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  loadingLocationText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  locationBox: {
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e5e7eb',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    padding: 4,
-  },
-  locationCoords: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontFamily: 'monospace',
-  },
-  inputRow: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e5e7eb',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#e5e7eb',
-  },
-  calculateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f59e0b',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-    gap: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  calculateButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#27272a',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    gap: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#ef4444',
-    flex: 1,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-    flexWrap: 'wrap',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#27272a',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  filterButtonActive: {
-    backgroundColor: '#f59e0b',
-  },
-  filterButtonText: {
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '600',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-  },
-  resultsContainer: {
-    marginBottom: 24,
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 12,
-  },
-  supplyCard: {
-    backgroundColor: '#27272a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  supplyCardExpanded: {
-    backgroundColor: '#2d2d30',
-  },
-  supplyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 12,
-  },
-  supplyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  supplyHeaderMiddle: {
-    flex: 1,
-  },
-  supplyName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 4,
-  },
-  supplyTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  supplyTypeBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  supplyTypeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  supplyQuickInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 8,
-  },
-  quickInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  quickInfoText: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  supplyDetails: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#3f3f46',
-  },
-  supplyDescription: {
-    fontSize: 14,
-    color: '#d1d5db',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  detailSection: {
-    marginBottom: 10,
-  },
-  detailLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#e5e7eb',
-  },
-  amenitiesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  amenityChip: {
-    backgroundColor: '#3f3f46',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  amenityText: {
-    fontSize: 12,
-    color: '#e5e7eb',
-  },
-  infoNoteContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#3f3f46',
-    borderRadius: 6,
-    padding: 8,
-    marginTop: 8,
-    gap: 6,
-  },
-  infoNoteText: {
-    flex: 1,
-    fontSize: 11,
-    color: '#9ca3af',
-    lineHeight: 16,
-  },
-  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f59e0b',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
-    gap: 8,
-  },
-  navigateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#9ca3af',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#71717a',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  content: { flex: 1 },
+  titleSection: { padding: 16, paddingBottom: 8 },
+  title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  subtitle: { color: '#a1a1aa', fontSize: 14, lineHeight: 20 },
+  searchSection: { paddingHorizontal: 16, marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { color: '#a1a1aa', fontSize: 14 },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  errorText: { color: '#fbbf24', fontSize: 15, textAlign: 'center' },
+  resultsContainer: { paddingHorizontal: 16, gap: 12 },
+  resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
+  resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
+  resultHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  iconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#052e16', alignItems: 'center', justifyContent: 'center' },
+  resultInfo: { flex: 1 },
+  resultName: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  resultAddress: { color: '#a1a1aa', fontSize: 13 },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { color: '#d4d4d8', fontSize: 13 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#27272a' },
+  tapHintText: { color: '#60a5fa', fontSize: 13 },
 });

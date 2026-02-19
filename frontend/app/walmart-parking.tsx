@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,40 +13,77 @@ interface PlaceResult {
   latitude: number;
   longitude: number;
   rating: number | null;
-  total_ratings: number | null;
   distance_miles: number | null;
   is_open: boolean | null;
   place_id: string;
 }
 
+interface GeocodeSuggestion {
+  place_name: string;
+  short_name: string;
+  coordinates: [number, number];
+}
+
 export default function WalmartParkingScreen() {
   const router = useRouter();
   const [results, setResults] = useState<PlaceResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('Location permission required');
-        setLoading(false);
-        return;
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const locationData = { lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' };
+        setCurrentLocation(locationData);
+        searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else {
+        setError('Enable location or search for a city above');
       }
-
-      const loc = await Location.getCurrentPositionAsync({});
-      setLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
-      searchPlaces(loc.coords.latitude, loc.coords.longitude);
     } catch (err) {
-      setError('Could not get location');
-      setLoading(false);
+      setError('Enable location or search for a city above');
+    } finally {
+      setGettingLocation(false);
     }
+  };
+
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, {
+          params: { query: text, limit: 5 }
+        });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
+    searchPlaces(lat, lon);
   };
 
   const searchPlaces = async (lat: number, lon: number) => {
@@ -54,14 +91,14 @@ export default function WalmartParkingScreen() {
     setError('');
     try {
       const response = await axios.get(`${API_BASE}/api/boondocking/walmart`, {
-        params: { latitude: lat, longitude: lon, radius_miles: 30 }
+        params: { latitude: lat, longitude: lon, radius_miles: 50 }
       });
       setResults(response.data.results || []);
       if (response.data.results?.length === 0) {
-        setError('No Walmart stores found within 30 miles');
+        setError('No Walmart stores found within 50 miles');
       }
-    } catch (err) {
-      setError('Failed to search. Please try again.');
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to search. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,16 +107,15 @@ export default function WalmartParkingScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    if (location) {
-      searchPlaces(location.lat, location.lon);
+    if (currentLocation) {
+      searchPlaces(currentLocation.lat, currentLocation.lon);
     } else {
       getCurrentLocation();
     }
   };
 
   const openInMaps = (place: PlaceResult) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`;
-    Linking.openURL(url);
+    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`);
   };
 
   return (
@@ -89,83 +125,66 @@ export default function WalmartParkingScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="#3b82f6" />
+        <TouchableOpacity onPress={getCurrentLocation} style={styles.refreshButton} disabled={gettingLocation}>
+          {gettingLocation ? <ActivityIndicator size="small" color="#3b82f6" /> : <Ionicons name="locate" size={24} color="#3b82f6" />}
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
-      >
+      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />} keyboardShouldPersistTaps="handled">
         <View style={styles.titleSection}>
           <Text style={styles.title}>🛒 Walmart Overnight</Text>
-          <Text style={styles.subtitle}>Many Walmart stores allow free overnight RV parking - policies vary by location</Text>
+          <Text style={styles.subtitle}>Many Walmart stores allow free overnight RV parking</Text>
+        </View>
+
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
+            <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)} />
+            {searchQuery.length > 0 && <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}><Ionicons name="close-circle" size={20} color="#6b7280" /></TouchableOpacity>}
+          </View>
+          
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
+                <TouchableOpacity key={index} style={styles.suggestionItem} onPress={() => selectLocation(suggestion)}>
+                  <Ionicons name="location" size={16} color="#3b82f6" />
+                  <Text style={styles.suggestionText}>{suggestion.place_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>Searching near: {currentLocation.name}</Text></View>}
         </View>
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text style={styles.loadingText}>Finding Walmart stores...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={48} color="#ef4444" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={onRefresh} style={styles.retryButton}>
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#3b82f6" /><Text style={styles.loadingText}>Finding Walmart stores...</Text></View>
+        ) : error && results.length === 0 ? (
+          <View style={styles.errorContainer}><Ionicons name="alert-circle" size={48} color="#f59e0b" /><Text style={styles.errorText}>{error}</Text></View>
         ) : (
           <View style={styles.resultsContainer}>
+            {results.length > 0 && <Text style={styles.resultsCount}>{results.length} stores found</Text>}
             {results.map((place, index) => (
-              <TouchableOpacity 
-                key={place.place_id || index}
-                style={styles.resultCard}
-                onPress={() => openInMaps(place)}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity key={place.place_id || index} style={styles.resultCard} onPress={() => openInMaps(place)} activeOpacity={0.7}>
                 <View style={styles.resultHeader}>
-                  <View style={styles.iconContainer}>
-                    <Ionicons name="storefront" size={24} color="#3b82f6" />
-                  </View>
+                  <View style={styles.iconContainer}><Ionicons name="storefront" size={24} color="#3b82f6" /></View>
                   <View style={styles.resultInfo}>
                     <Text style={styles.resultName}>{place.name}</Text>
                     <Text style={styles.resultAddress}>{place.address}</Text>
                   </View>
                 </View>
                 <View style={styles.resultMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="navigate" size={16} color="#60a5fa" />
-                    <Text style={styles.metaText}>{place.distance_miles} mi</Text>
-                  </View>
-                  {place.rating && (
-                    <View style={styles.metaItem}>
-                      <Ionicons name="star" size={16} color="#eab308" />
-                      <Text style={styles.metaText}>{place.rating}</Text>
-                    </View>
-                  )}
-                  {place.is_open !== null && (
-                    <View style={[styles.statusBadge, place.is_open ? styles.openBadge : styles.closedBadge]}>
-                      <Text style={styles.statusText}>{place.is_open ? 'Open' : 'Closed'}</Text>
-                    </View>
-                  )}
+                  <View style={styles.metaItem}><Ionicons name="navigate" size={16} color="#60a5fa" /><Text style={styles.metaText}>{place.distance_miles} mi</Text></View>
+                  {place.rating && <View style={styles.metaItem}><Ionicons name="star" size={16} color="#eab308" /><Text style={styles.metaText}>{place.rating}</Text></View>}
+                  {place.is_open !== null && <View style={[styles.statusBadge, place.is_open ? styles.openBadge : styles.closedBadge]}><Text style={styles.statusText}>{place.is_open ? 'Open' : 'Closed'}</Text></View>}
                 </View>
-                <View style={styles.tapHint}>
-                  <Ionicons name="map" size={16} color="#60a5fa" />
-                  <Text style={styles.tapHintText}>Tap for directions</Text>
-                </View>
+                <View style={styles.tapHint}><Ionicons name="map" size={16} color="#60a5fa" /><Text style={styles.tapHintText}>Tap for directions</Text></View>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        <View style={styles.disclaimer}>
-          <Ionicons name="information-circle" size={20} color="#6b7280" />
-          <Text style={styles.disclaimerText}>
-            Not all Walmart stores allow overnight parking. Look for "No Overnight Parking" signs and check with store management.
-          </Text>
-        </View>
+        <View style={styles.disclaimer}><Ionicons name="information-circle" size={20} color="#6b7280" /><Text style={styles.disclaimerText}>Not all Walmart stores allow overnight parking. Look for "No Overnight Parking" signs and check with store management.</Text></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -178,16 +197,24 @@ const styles = StyleSheet.create({
   backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   refreshButton: { padding: 8 },
   content: { flex: 1 },
-  titleSection: { padding: 16 },
+  titleSection: { padding: 16, paddingBottom: 8 },
   title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
   subtitle: { color: '#a1a1aa', fontSize: 14, lineHeight: 20 },
+  searchSection: { paddingHorizontal: 16, marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46', overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
   loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   loadingText: { color: '#a1a1aa', fontSize: 14 },
-  errorContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  errorText: { color: '#ef4444', fontSize: 16, textAlign: 'center' },
-  retryButton: { backgroundColor: '#27272a', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginTop: 8 },
-  retryText: { color: '#fff', fontWeight: '600' },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12, paddingHorizontal: 20 },
+  errorText: { color: '#fbbf24', fontSize: 15, textAlign: 'center' },
   resultsContainer: { paddingHorizontal: 16, gap: 12 },
+  resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
   resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
   resultHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   iconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' },
