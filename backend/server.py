@@ -2704,6 +2704,17 @@ async def find_weight_restrictions(latitude: float, longitude: float, radius_mil
     }
 
 
+# Include the router in the main app
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
