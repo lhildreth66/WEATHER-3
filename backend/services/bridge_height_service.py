@@ -272,7 +272,7 @@ def extract_bridge_data(elements: List[Dict], route_points: List[Tuple[float, fl
         if tags.get("ref"):
             location_parts.append(tags["ref"])
         
-        location_name = " ".join(location_parts) if location_parts else f"Bridge/Overpass"
+        location_name = " ".join(location_parts) if location_parts else "Bridge/Overpass"
         
         # Determine confidence level
         confidence = "estimated"
