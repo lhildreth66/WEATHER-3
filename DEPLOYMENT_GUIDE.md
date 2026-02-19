@@ -78,7 +78,7 @@ Set these values (marked as `sync: false` in render.yaml):
 
 1. Go to [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks)
 2. Click **"Add endpoint"**
-3. Enter endpoint URL: `https://api.routecastweather.com/api/webhooks/stripe`
+3. Enter endpoint URL: `https://api.routecastweather.com/api/webhook/stripe`
 4. Select events to listen for:
    - `checkout.session.completed`
    - `customer.subscription.created`
