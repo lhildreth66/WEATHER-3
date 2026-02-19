@@ -83,6 +83,7 @@ interface AutocompleteSuggestion {
 }
 
 export default function HomeScreen() {
+  const { user, isAuthenticated, isPremium } = useAuth();
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [loading, setLoading] = useState(false);
