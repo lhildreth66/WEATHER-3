@@ -1,349 +1,131 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Linking, RefreshControl } from 'react-native';
-import axios from 'axios';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import axios from 'axios';
 import { API_BASE } from '../lib/apiConfig';
 
-interface RVDealership {
+interface PlaceResult {
   name: string;
-  type: string; // 'Dealership', 'Service Center', 'Parts & Accessories'
-  distance_miles: number;
+  address: string;
   latitude: number;
   longitude: number;
-  description: string;
-  hours: string;
-  phone: string;
-  services: string[];
-  brands: string[];
-  rating: number;
-  address?: string;
-  website?: string;
+  rating: number | null;
+  distance_miles: number | null;
+  place_id: string;
 }
+
+interface GeocodeSuggestion { place_name: string; short_name: string; coordinates: [number, number]; }
 
 export default function RVDealershipScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [locationLoading, setLocationLoading] = useState(true);
-  const [dealerships, setDealerships] = useState<RVDealership[]>([]);
-  const [error, setError] = useState<string>('');
-  const [expandedDealerships, setExpandedDealerships] = useState(new Set<number>());
+  const [results, setResults] = useState<PlaceResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Automatically get current location and search on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const location = await Location.getCurrentPositionAsync({});
-          const lat = location.coords.latitude.toFixed(4);
-          const lon = location.coords.longitude.toFixed(4);
-          setLatitude(lat);
-          setLongitude(lon);
-          setLocationLoading(false);
-          
-          // Auto-search immediately
-          await performSearch(parseFloat(lat), parseFloat(lon));
-        } else {
-          setLocationLoading(false);
-          setLoading(false);
-          setError('Location permission required to find nearby RV dealerships');
-        }
-      } catch (err) {
-        setLocationLoading(false);
-        setLoading(false);
-        setError('Failed to get current location');
-      }
-    })();
-  }, []);
+  useEffect(() => { getCurrentLocation(); }, []);
 
-  const performSearch = async (lat: number, lon: number) => {
-    setLoading(true);
-    setDealerships([]);
-    setError('');
-    try {
-      const resp = await axios.get(`${API_BASE}/api/boondocking/rv-dealers`, {
-        params: {
-          latitude: lat,
-          longitude: lon,
-          radius_miles: 50,
-        },
-      });
-      // Map API response to expected format
-      const mappedDealerships = (resp.data.results || []).map((place: any) => ({
-        name: place.name,
-        distance_miles: place.distance_miles,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        rating: place.rating,
-        address: place.address,
-      }));
-      setDealerships(mappedDealerships);
-      if (mappedDealerships.length === 0) {
-        setError('No RV dealerships found within 50 miles.');
-      }
-    } catch (err: any) {
-      console.error('RV dealership search error:', err);
-      setError(err?.response?.data?.detail || err?.message || 'Failed to find RV dealerships');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshLocation = async () => {
-    setLocationLoading(true);
+  const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required.');
-        setLocationLoading(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const lat = location.coords.latitude.toFixed(4);
-      const lon = location.coords.longitude.toFixed(4);
-      setLatitude(lat);
-      setLongitude(lon);
-      setLocationLoading(false);
-      
-      Alert.alert('Location Updated', 'Searching for nearby RV dealerships...');
-      await performSearch(parseFloat(lat), parseFloat(lon));
-    } catch (err) {
-      setLocationLoading(false);
-      Alert.alert('Error', 'Failed to get current location');
-    }
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCurrentLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' });
+        searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else { setError('Enable location or search for a city'); }
+    } catch (err) { setError('Enable location or search for a city'); }
+    finally { setGettingLocation(false); }
   };
 
-  const toggleDealershipExpand = (index: number) => {
-    const newExpanded = new Set(expandedDealerships);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedDealerships(newExpanded);
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, { params: { query: text, limit: 5 } });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) { setSuggestions([]); }
+    } else { setSuggestions([]); setShowSuggestions(false); }
   };
 
-  const openInMaps = (dealership: RVDealership) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${dealership.latitude},${dealership.longitude}`;
-    Linking.openURL(url);
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
+    searchPlaces(lat, lon);
   };
 
-  const callPhone = (phone: string) => {
-    if (phone && phone !== 'N/A') {
-      Linking.openURL(`tel:${phone}`);
-    }
+  const searchPlaces = async (lat: number, lon: number) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await axios.get(`${API_BASE}/api/boondocking/rv-dealers`, { params: { latitude: lat, longitude: lon, radius_miles: 75 } });
+      setResults(response.data.results || []);
+      if (response.data.results?.length === 0) setError('No RV dealerships found within 75 miles');
+    } catch (err: any) { setError(err?.response?.data?.detail || 'Failed to search'); }
+    finally { setLoading(false); setRefreshing(false); }
   };
+
+  const onRefresh = () => { setRefreshing(true); currentLocation ? searchPlaces(currentLocation.lat, currentLocation.lon) : getCurrentLocation(); };
+  const openInMaps = (place: PlaceResult) => { Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`); };
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#fff" /><Text style={styles.backText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={getCurrentLocation} disabled={gettingLocation}>{gettingLocation ? <ActivityIndicator size="small" color="#ec4899" /> : <Ionicons name="locate" size={24} color="#ec4899" />}</TouchableOpacity>
+      </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.title}>🚐 Nearest RV Dealerships</Text>
-          <Text style={styles.subtitle}>Find RV dealerships, service centers, and parts within 10 miles</Text>
-
-          {/* Location Display with Auto-detect */}
-          <View style={styles.locationBox}>
-            <View style={styles.locationHeader}>
-              <Ionicons name="location" size={18} color="#ec4899" />
-              <Text style={styles.locationLabel}>Your Location</Text>
-              <TouchableOpacity 
-                onPress={refreshLocation} 
-                style={styles.refreshLocationBtn}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator size="small" color="#ec4899" />
-                ) : (
-                  <Ionicons name="refresh" size={18} color="#ec4899" />
-                )}
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.locationCoords}>
-              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-            </Text>
-          </View>
-
-          <TouchableOpacity 
-            onPress={refreshLocation} 
-            style={styles.locationButton}
-            disabled={locationLoading || loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="search" size={18} color="#fff" />
-                <Text style={styles.locationButtonText}>Search Nearby</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {error && !loading ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ec4899" />} keyboardShouldPersistTaps="handled">
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>🚐 RV Dealerships</Text>
+          <Text style={styles.subtitle}>Find RV dealers for service, parts, or repairs (75 mile radius)</Text>
         </View>
 
-        {/* Loading State */}
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#ec4899" />
-            <Text style={styles.loadingText}>Searching for RV dealerships...</Text>
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#6b7280" style={{ marginRight: 8 }} />
+            <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" />
+            {searchQuery.length > 0 && <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}><Ionicons name="close-circle" size={20} color="#6b7280" /></TouchableOpacity>}
           </View>
-        )}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((s, i) => <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectLocation(s)}><Ionicons name="location" size={16} color="#ec4899" /><Text style={styles.suggestionText}>{s.place_name}</Text></TouchableOpacity>)}
+            </View>
+          )}
+          {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>Searching near: {currentLocation.name}</Text></View>}
+        </View>
 
-        {/* Results */}
-        {!loading && dealerships.length > 0 && (
+        {loading ? (
+          <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#ec4899" /><Text style={styles.loadingText}>Finding RV dealerships...</Text></View>
+        ) : error && results.length === 0 ? (
+          <View style={styles.errorContainer}><Ionicons name="alert-circle" size={48} color="#f59e0b" /><Text style={styles.errorText}>{error}</Text></View>
+        ) : (
           <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>Found {dealerships.length} RV Dealership{dealerships.length !== 1 ? 's' : ''}</Text>
-            
-            {dealerships.map((dealership, index) => {
-              const isExpanded = expandedDealerships.has(index);
-              
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.dealershipCard, isExpanded && styles.dealershipCardExpanded]}
-                  onPress={() => toggleDealershipExpand(index)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.dealershipHeader}>
-                    <View style={styles.dealershipIcon}>
-                      <Ionicons name="car-sport" size={24} color="#ec4899" />
-                    </View>
-                    <View style={styles.dealershipHeaderMiddle}>
-                      <Text style={styles.dealershipName}>{dealership.name}</Text>
-                      <View style={styles.dealershipTypeRow}>
-                        <View style={styles.dealershipTypeBadge}>
-                          <Text style={styles.dealershipTypeBadgeText}>{dealership.type}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <Ionicons 
-                      name={isExpanded ? "chevron-up" : "chevron-down"} 
-                      size={24} 
-                      color="#9ca3af" 
-                    />
-                  </View>
-
-                  <View style={styles.dealershipQuickInfo}>
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="navigate" size={16} color="#ec4899" />
-                      <Text style={styles.quickInfoText}>{dealership.distance_miles.toFixed(1)} mi</Text>
-                    </View>
-                    {dealership.phone !== 'N/A' && (
-                      <TouchableOpacity 
-                        style={styles.quickInfoItem}
-                        onPress={() => callPhone(dealership.phone)}
-                      >
-                        <Ionicons name="call" size={16} color="#06b6d4" />
-                        <Text style={[styles.quickInfoText, { color: '#06b6d4' }]}>Call</Text>
-                      </TouchableOpacity>
-                    )}
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="star" size={16} color="#eab308" />
-                      <Text style={styles.quickInfoText}>{dealership.rating.toFixed(1)}</Text>
-                    </View>
-                  </View>
-
-                  {isExpanded && (
-                    <View style={styles.dealershipDetails}>
-                      <Text style={styles.dealershipDescription}>{dealership.description}</Text>
-                      
-                      <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>📍 Coordinates:</Text>
-                        <Text style={styles.detailValue}>{dealership.latitude.toFixed(4)}, {dealership.longitude.toFixed(4)}</Text>
-                      </View>
-
-                      <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>🕐 Hours:</Text>
-                        <Text style={styles.detailValue}>{dealership.hours}</Text>
-                      </View>
-
-                      {dealership.address && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>📍 Address:</Text>
-                          <Text style={styles.detailValue}>{dealership.address}</Text>
-                        </View>
-                      )}
-
-                      {dealership.phone !== 'N/A' && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>📞 Phone:</Text>
-                          <TouchableOpacity onPress={() => callPhone(dealership.phone)}>
-                            <Text style={[styles.detailValue, { color: '#06b6d4' }]}>{dealership.phone}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      {dealership.website && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>🌐 Website:</Text>
-                          <TouchableOpacity onPress={() => Linking.openURL(dealership.website!)}>
-                            <Text style={[styles.detailValue, { color: '#06b6d4', textDecorationLine: 'underline' }]}>
-                              {dealership.website}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      {dealership.brands.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>🏷️ Brands:</Text>
-                          <View style={styles.brandsList}>
-                            {dealership.brands.map((brand, i) => (
-                              <View key={i} style={styles.brandChip}>
-                                <Text style={styles.brandText}>{brand}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      {dealership.services.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>🔧 Services:</Text>
-                          <View style={styles.servicesList}>
-                            {dealership.services.map((service, i) => (
-                              <View key={i} style={styles.serviceItem}>
-                                <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-                                <Text style={styles.serviceText}>{service}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      <View style={styles.infoNote}>
-                        <Ionicons name="information-circle-outline" size={14} color="#9ca3af" />
-                        <Text style={styles.infoNoteText}>The dealership name and details will be shown in Google Maps when you navigate to this location.</Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.navigateButton}
-                        onPress={() => openInMaps(dealership)}
-                      >
-                        <Ionicons name="navigate" size={18} color="#fff" />
-                        <Text style={styles.navigateButtonText}>Navigate with Google Maps</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+            {results.length > 0 && <Text style={styles.resultsCount}>{results.length} dealerships found</Text>}
+            {results.map((place, index) => (
+              <TouchableOpacity key={place.place_id || index} style={styles.resultCard} onPress={() => openInMaps(place)} activeOpacity={0.7}>
+                <View style={styles.resultHeader}>
+                  <View style={styles.iconContainer}><Ionicons name="car-sport" size={24} color="#ec4899" /></View>
+                  <View style={styles.resultInfo}><Text style={styles.resultName}>{place.name}</Text><Text style={styles.resultAddress}>{place.address}</Text></View>
+                </View>
+                <View style={styles.resultMeta}>
+                  <View style={styles.metaItem}><Ionicons name="navigate" size={16} color="#60a5fa" /><Text style={styles.metaText}>{place.distance_miles} mi</Text></View>
+                  {place.rating && <View style={styles.metaItem}><Ionicons name="star" size={16} color="#eab308" /><Text style={styles.metaText}>{place.rating}</Text></View>}
+                </View>
+                <View style={styles.tapHint}><Ionicons name="map" size={16} color="#60a5fa" /><Text style={styles.tapHintText}>Tap for directions</Text></View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -352,306 +134,37 @@ export default function RVDealershipScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#18181b',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  card: {
-    backgroundColor: '#27272a',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 16,
-  },
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#ec489920',
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ec489915',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationCoords: {
-    color: '#ec4899',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  infoNote: {
-    fontSize: 12,
-    color: '#fbbf24',
-    marginBottom: 16,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#e5e7eb',
-    flex: 1,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-  },
-  locationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ec4899',
-  },
-  loadingLocationBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3f3f46',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  loadingLocationText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#27272a',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    gap: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#ef4444',
-    flex: 1,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 16,
-  },
-  resultsContainer: {
-    marginBottom: 24,
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 12,
-  },
-  dealershipCard: {
-    backgroundColor: '#27272a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ec4899',
-  },
-  dealershipCardExpanded: {
-    backgroundColor: '#2d2d30',
-  },
-  dealershipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 12,
-  },
-  dealershipIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#ec489933',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dealershipHeaderMiddle: {
-    flex: 1,
-  },
-  dealershipName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#e5e7eb',
-    marginBottom: 4,
-  },
-  dealershipTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dealershipTypeBadge: {
-    backgroundColor: '#3f3f46',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  dealershipTypeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ec4899',
-  },
-  dealershipQuickInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 8,
-  },
-  quickInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  quickInfoText: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  dealershipDetails: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#3f3f46',
-  },
-  dealershipDescription: {
-    fontSize: 14,
-    color: '#d1d5db',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  detailSection: {
-    marginBottom: 10,
-  },
-  detailLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#e5e7eb',
-  },
-  brandsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  brandChip: {
-    backgroundColor: '#ec489933',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  brandText: {
-    fontSize: 12,
-    color: '#ec4899',
-    fontWeight: '600',
-  },
-  servicesList: {
-    marginTop: 4,
-    gap: 6,
-  },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  serviceText: {
-    fontSize: 13,
-    color: '#e5e7eb',
-  },  infoNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#3f3f46',
-    borderRadius: 6,
-    padding: 8,
-    marginTop: 8,
-    gap: 6,
-  },
-  infoNoteText: {
-    flex: 1,
-    fontSize: 11,
-    color: '#9ca3af',
-    lineHeight: 16,
-  },  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ec4899',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
-    gap: 8,
-  },
-  navigateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  content: { flex: 1 },
+  titleSection: { padding: 16, paddingBottom: 8 },
+  title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  subtitle: { color: '#a1a1aa', fontSize: 14, lineHeight: 20 },
+  searchSection: { paddingHorizontal: 16, marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { color: '#a1a1aa', fontSize: 14 },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  errorText: { color: '#fbbf24', fontSize: 15, textAlign: 'center' },
+  resultsContainer: { paddingHorizontal: 16, gap: 12 },
+  resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
+  resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
+  resultHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  iconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#500724', alignItems: 'center', justifyContent: 'center' },
+  resultInfo: { flex: 1 },
+  resultName: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  resultAddress: { color: '#a1a1aa', fontSize: 13 },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { color: '#d4d4d8', fontSize: 13 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#27272a' },
+  tapHintText: { color: '#60a5fa', fontSize: 13 },
 });
