@@ -1772,18 +1772,6 @@ async def unregister_push_token(token: str):
         logger.error(f"Error unregistering push token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Include the router in the main app
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 # ==================== Boondocker Models ====================
 
 class ChecklistItem(BaseModel):
