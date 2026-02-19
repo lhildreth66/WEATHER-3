@@ -41,6 +41,9 @@ async def check_subscription_status(db: AsyncIOMotorDatabase, user_id: str) -> d
     
     # Check if subscription has expired
     if expiration and isinstance(expiration, datetime):
+        # Make sure expiration is timezone-aware
+        if expiration.tzinfo is None:
+            expiration = expiration.replace(tzinfo=timezone.utc)
         if expiration < now and status in ["active", "trialing"]:
             # Subscription has expired
             await db.users.update_one(
