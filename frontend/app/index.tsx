@@ -110,15 +110,6 @@ export default function HomeScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [useCustomTime, setUseCustomTime] = useState(false);
   
-  // AI Chat
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', text: string}[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatSuggestions, setChatSuggestions] = useState<string[]>(['How to drive in snow?', 'Is fog dangerous?', 'Rest stop tips']);
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  
   // Multi-stop
   const [stops, setStops] = useState<StopPoint[]>([]);
   const [showAddStop, setShowAddStop] = useState(false);
@@ -127,14 +118,6 @@ export default function HomeScreen() {
   
   // Radar map state
   const [showRadarMap, setShowRadarMap] = useState(false);
-
-  // Check for speech recognition support on web
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      setSpeechSupported(!!SpeechRecognition);
-    }
-  }, []);
 
   useEffect(() => {
     fetchRecentRoutes();
