@@ -794,9 +794,19 @@ export default function HomeScreen() {
                     onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
                     returnKeyType="done"
                     onSubmitEditing={handleGetWeather}
+                    data-testid="destination-input"
                   />
                   {autocompleteLoading && destination.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
+                  )}
+                  {destination.length > 0 && (
+                    <TouchableOpacity 
+                      onPress={() => { setDestination(''); setDestSuggestions([]); setShowDestSuggestions(false); }} 
+                      style={styles.clearButton}
+                      data-testid="clear-destination-btn"
+                    >
+                      <Ionicons name="close-circle" size={18} color="#6b7280" />
+                    </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={swapLocations} style={styles.swapButton}>
                     <Ionicons name="swap-vertical" size={20} color="#60a5fa" />
