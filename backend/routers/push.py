@@ -167,7 +167,7 @@ async def list_route_monitors(
     push_service = PushNotificationService(db)
     monitor_service = RouteMonitorService(db, push_service)
     
-    monitors = await monitor_service.get_user_monitors(user["user_id"])
+    monitors = await monitor_service.get_user_monitors(user["sub"])
     
     return {
         "monitors": monitors,
