@@ -360,6 +360,7 @@ export default function HomeScreen() {
         stops: stops,
         vehicle_type: vehicleType,
         trucker_mode: truckerMode,
+        vehicle_height_ft: truckerMode ? parseFloat(vehicleHeight) || 13.6 : null,
       };
       
       if (useCustomTime) {
