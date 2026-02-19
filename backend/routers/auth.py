@@ -295,6 +295,9 @@ async def get_me(request: Request, current_user: dict = Depends(get_current_user
     if sub_status["status"] == "trialing" and user.get("trial_end"):
         trial_end = user["trial_end"]
         if isinstance(trial_end, datetime):
+            # Make sure trial_end is timezone-aware
+            if trial_end.tzinfo is None:
+                trial_end = trial_end.replace(tzinfo=timezone.utc)
             remaining = (trial_end - datetime.now(timezone.utc)).days
             trial_days_remaining = max(0, remaining)
     
