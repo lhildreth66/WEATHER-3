@@ -858,7 +858,7 @@ export default function HomeScreen() {
                   <Ionicons name="bus-outline" size={22} color="#f59e0b" />
                   <View>
                     <Text style={styles.alertsText}>Trucker Mode</Text>
-                    <Text style={styles.truckerSubtext}>Wind & height warnings</Text>
+                    <Text style={styles.truckerSubtext}>Bridge clearance & wind warnings</Text>
                   </View>
                 </View>
                 <Switch
@@ -868,6 +868,28 @@ export default function HomeScreen() {
                   thumbColor={truckerMode ? '#f59e0b' : '#71717a'}
                 />
               </View>
+
+              {/* Vehicle Height Input - shows when Trucker Mode is on */}
+              {truckerMode && (
+                <View style={styles.vehicleHeightContainer}>
+                  <View style={styles.vehicleHeightRow}>
+                    <Ionicons name="resize-outline" size={20} color="#f59e0b" />
+                    <Text style={styles.vehicleHeightLabel}>Vehicle Height</Text>
+                  </View>
+                  <View style={styles.vehicleHeightInputRow}>
+                    <TextInput
+                      style={styles.vehicleHeightInput}
+                      value={vehicleHeight}
+                      onChangeText={setVehicleHeight}
+                      keyboardType="decimal-pad"
+                      placeholder="13.6"
+                      placeholderTextColor="#6b7280"
+                    />
+                    <Text style={styles.vehicleHeightUnit}>feet</Text>
+                  </View>
+                  <Text style={styles.vehicleHeightHint}>Enter total height for bridge clearance alerts</Text>
+                </View>
+              )}
 
               {/* Weather Alerts Toggle */}
               <View style={styles.alertsToggle}>
