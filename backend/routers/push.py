@@ -187,7 +187,7 @@ async def cancel_route_monitor(
     monitor_service = RouteMonitorService(db, push_service)
     
     success = await monitor_service.cancel_monitor(
-        user_id=user["user_id"],
+        user_id=user["sub"],
         monitor_id=monitor_id
     )
     
