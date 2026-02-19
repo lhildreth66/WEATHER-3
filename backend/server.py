@@ -2807,6 +2807,17 @@ async def calculate_water_budget(request: WaterBudgetRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+# Include auth, subscription, admin, and webhook routers
+from routers.auth import router as auth_router
+from routers.subscription import router as subscription_router
+from routers.admin import router as admin_router
+from routers.webhooks import router as webhook_router
+
+app.include_router(auth_router, prefix="/api")
+app.include_router(subscription_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
+app.include_router(webhook_router, prefix="/api")
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -2814,6 +2825,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_db_client():
+    """Store database in app state for access in routers"""
+    app.state.db = db
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
