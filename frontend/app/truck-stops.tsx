@@ -1,137 +1,134 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Alert, Linking, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Linking } from 'react-native';
 import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../lib/apiConfig';
 
-interface TruckStop {
+interface PlaceResult {
+  place_id: string;
   name: string;
-  brand?: string;
-  distance_miles: number;
+  address: string;
   latitude: number;
   longitude: number;
-  amenities: string[];
-  fuel_types: string[];
-  services: string[];
+  distance_miles: number;
   rating?: number;
+  is_open?: boolean;
   phone?: string;
-  website?: string;
-  hours?: string;
+}
+
+interface LocationData {
+  lat: number;
+  lon: number;
+  name: string;
+}
+
+interface AutocompleteSuggestion {
+  place_name: string;
+  short_name: string;
+  center: [number, number];
 }
 
 export default function TruckStopsScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [searchRadius, setSearchRadius] = useState('15');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [stops, setStops] = useState<TruckStop[]>([]);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [results, setResults] = useState<PlaceResult[]>([]);
   const [error, setError] = useState<string>('');
-  const [expandedStops, setExpandedStops] = useState(new Set<number>());
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
+    setError('');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setLatitude(location.coords.latitude.toFixed(4));
-        setLongitude(location.coords.longitude.toFixed(4));
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const locationData = { lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' };
+        setCurrentLocation(locationData);
+        searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else {
+        setError('');
+        setCurrentLocation(null);
       }
     } catch (err) {
-      console.log('Could not get current location:', err);
-      // Set default location (center of US) if location fails
-      setLatitude('39.8283');
-      setLongitude('-98.5795');
+      setError('');
+      setCurrentLocation(null);
+    } finally {
+      setGettingLocation(false);
     }
   };
 
-  const refreshLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Location Permission Required', 'Please enable location permissions.');
-        setLocationLoading(false);
-        return;
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, {
+          params: { query: text, limit: 5 }
+        });
+        setSuggestions(response.data || []);
+      } catch (err) {
+        console.log('Autocomplete error:', err);
+        setSuggestions([]);
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-      setLocationLoading(false);
-      Alert.alert('Location Updated', `Refreshed to: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
-    } catch (err: any) {
-      setLocationLoading(false);
-      Alert.alert('Location Error', err.message || 'Unable to get your location.');
+    } else {
+      setSuggestions([]);
     }
   };
 
-  const searchTruckStops = async () => {
+  const selectSuggestion = (suggestion: AutocompleteSuggestion) => {
+    const locationData = {
+      lat: suggestion.center[1],
+      lon: suggestion.center[0],
+      name: suggestion.short_name || suggestion.place_name
+    };
+    setCurrentLocation(locationData);
+    setSearchQuery(suggestion.short_name || suggestion.place_name);
+    setSuggestions([]);
+    searchPlaces(locationData.lat, locationData.lon);
+  };
+
+  const searchPlaces = async (lat: number, lon: number) => {
     setLoading(true);
-    setStops([]);
     setError('');
+    setResults([]);
     try {
       const resp = await axios.get(`${API_BASE}/api/trucker/truck-stops`, {
-        params: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          radius_miles: parseInt(searchRadius, 10),
-        },
-        timeout: 65000,
+        params: { latitude: lat, longitude: lon, radius_miles: 50 }
       });
-      // Map the response to match expected format
-      const mappedStops = (resp.data.results || []).map((place: any) => ({
+      const mappedResults = (resp.data.results || []).map((place: any) => ({
+        place_id: place.place_id,
         name: place.name,
-        distance_miles: place.distance_miles,
+        address: place.address,
         latitude: place.latitude,
         longitude: place.longitude,
-        amenities: [],
-        fuel_types: ['Diesel'],
-        services: [],
+        distance_miles: place.distance_miles,
         rating: place.rating,
+        is_open: place.is_open,
+        phone: place.phone,
       }));
-      setStops(mappedStops);
-      if (mappedStops.length === 0) {
-        setError('No truck stops found in this area. Try increasing the search radius.');
+      setResults(mappedResults);
+      if (mappedResults.length === 0) {
+        setError('No truck stops found in this area');
       }
     } catch (err: any) {
-      console.error('Truck stops search error:', err);
-      setError(err?.response?.data?.detail || 'Failed to find truck stops. Tap to retry.');
+      console.error('Search error:', err);
+      setError(err?.response?.data?.detail || 'Failed to search. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await searchTruckStops();
-    setRefreshing(false);
-  };
-
-  const toggleStopExpand = (index: number) => {
-    const newExpanded = new Set(expandedStops);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedStops(newExpanded);
-  };
-
-  const openInMaps = (stop: TruckStop) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`;
+  const openInMaps = (place: PlaceResult) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`;
     Linking.openURL(url);
   };
 
@@ -139,430 +136,210 @@ export default function TruckStopsScreen() {
     Linking.openURL(`tel:${phone}`);
   };
 
-  const openWebsite = (url: string) => {
-    Linking.openURL(url);
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.title}>⛽ Truck Stops & Fuel</Text>
-          <Text style={styles.subtitle}>Find Flying J, Love's, TA, Pilot, and more</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
 
-        <View style={styles.formContainer}>
-          {/* Location Display with Auto-detect */}
-          <View style={styles.locationBox}>
-            <View style={styles.locationBoxHeader}>
-              <Ionicons name="location" size={18} color="#3b82f6" />
-              <Text style={styles.locationBoxLabel}>Your Location</Text>
-              <TouchableOpacity
-                style={styles.refreshLocationBtn}
-                onPress={refreshLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator size="small" color="#3b82f6" />
-                ) : (
-                  <Ionicons name="refresh" size={18} color="#3b82f6" />
-                )}
-              </TouchableOpacity>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <View style={styles.titleRow}>
+            <Ionicons name="bus" size={28} color="#22c55e" />
+            <Text style={styles.title}>Truck Stops & Fuel</Text>
+          </View>
+          <Text style={styles.subtitle}>Find diesel, DEF, and amenities for commercial vehicles</Text>
+
+          {/* Search Input */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={18} color="#6b7280" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search city or address..."
+                placeholderTextColor="#6b7280"
+                value={searchQuery}
+                onChangeText={handleSearchQueryChange}
+                autoComplete="off"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}>
+                  <Ionicons name="close-circle" size={18} color="#6b7280" />
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={styles.locationBoxCoords}>
-              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-            </Text>
-          </View>
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Search Radius (miles)</Text>
-            <TextInput
-              value={searchRadius}
-              onChangeText={setSearchRadius}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 25"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={searchTruckStops}
-            style={[styles.searchButton, loading && styles.buttonDisabled]}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="search" size={20} color="#fff" />
-                <Text style={styles.searchButtonText}>Find Truck Stops</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {error ? (
-            <TouchableOpacity style={styles.errorBox} onPress={searchTruckStops}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {stops.length > 0 && (
-          <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>Found {stops.length} Truck Stop{stops.length !== 1 ? 's' : ''}</Text>
             
-            {stops.map((stop, index) => {
-              const isExpanded = expandedStops.has(index);
-              
-              return (
+            {/* Auto-detect location button */}
+            <TouchableOpacity 
+              style={styles.detectBtn} 
+              onPress={getCurrentLocation}
+              disabled={gettingLocation}
+            >
+              {gettingLocation ? (
+                <ActivityIndicator size="small" color="#22c55e" />
+              ) : (
+                <Ionicons name="locate" size={22} color="#22c55e" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.stopCard, isExpanded && styles.stopCardExpanded]}
-                  onPress={() => toggleStopExpand(index)}
-                  activeOpacity={0.8}
+                  style={styles.suggestionItem}
+                  onPress={() => selectSuggestion(suggestion)}
                 >
-                  <View style={styles.stopHeader}>
-                    <View style={styles.stopHeaderLeft}>
-                      <Text style={styles.stopName}>{stop.name}</Text>
-                      {stop.brand && (
-                        <View style={styles.brandBadge}>
-                          <Text style={styles.brandBadgeText}>{stop.brand}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={24} color="#9ca3af" />
+                  <Ionicons name="location" size={18} color="#22c55e" />
+                  <Text style={styles.suggestionText}>{suggestion.place_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Current location badge */}
+          {currentLocation && (
+            <View style={styles.locationBadge}>
+              <Ionicons name="location" size={14} color="#10b981" />
+              <Text style={styles.locationText}>Searching near: {currentLocation.name}</Text>
+            </View>
+          )}
+          
+          {/* Prompt when no location */}
+          {!currentLocation && !loading && results.length === 0 && !gettingLocation && (
+            <View style={styles.promptBox}>
+              <Ionicons name="search" size={20} color="#22c55e" />
+              <Text style={styles.promptText}>Enter a city or tap the location icon to find truck stops</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Results */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#22c55e" />
+            <Text style={styles.loadingText}>Finding truck stops...</Text>
+          </View>
+        ) : error && results.length === 0 ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="bus-outline" size={48} color="#6b7280" />
+            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorSubtext}>Try searching a different location</Text>
+          </View>
+        ) : (
+          <View style={styles.resultsContainer}>
+            {results.length > 0 && (
+              <Text style={styles.resultsCount}>{results.length} truck stops found</Text>
+            )}
+            {results.map((place, index) => (
+              <TouchableOpacity 
+                key={place.place_id || index}
+                style={styles.resultCard}
+                onPress={() => openInMaps(place)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.resultHeader}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="bus" size={24} color="#22c55e" />
                   </View>
-
-                  <View style={styles.stopQuickInfo}>
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="navigate" size={16} color="#06b6d4" />
-                      <Text style={styles.quickInfoText}>{stop.distance_miles.toFixed(1)} mi</Text>
-                    </View>
-                    {stop.fuel_types.length > 0 && (
-                      <View style={styles.quickInfoItem}>
-                        <Ionicons name="water" size={16} color="#22c55e" />
-                        <Text style={styles.quickInfoText}>{stop.fuel_types.join(', ')}</Text>
-                      </View>
-                    )}
+                  <View style={styles.resultInfo}>
+                    <Text style={styles.resultName}>{place.name}</Text>
+                    <Text style={styles.resultAddress}>{place.address}</Text>
                   </View>
-
-                  {isExpanded && (
-                    <View style={styles.stopDetails}>
-                      {stop.amenities.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Amenities</Text>
-                          <View style={styles.tagContainer}>
-                            {stop.amenities.map((amenity, i) => (
-                              <View key={i} style={styles.tag}>
-                                <Text style={styles.tagText}>{amenity}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      {stop.services.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Services</Text>
-                          <View style={styles.tagContainer}>
-                            {stop.services.map((service, i) => (
-                              <View key={i} style={[styles.tag, styles.serviceTag]}>
-                                <Text style={styles.tagText}>{service}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      {stop.hours && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Hours</Text>
-                          <Text style={styles.detailValue}>{stop.hours}</Text>
-                        </View>
-                      )}
-
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity style={styles.actionButton} onPress={() => openInMaps(stop)}>
-                          <Ionicons name="navigate" size={20} color="#fff" />
-                          <Text style={styles.actionButtonText}>Directions</Text>
-                        </TouchableOpacity>
-                        {stop.phone && (
-                          <TouchableOpacity style={styles.actionButton} onPress={() => callPhone(stop.phone!)}>
-                            <Ionicons name="call" size={20} color="#fff" />
-                            <Text style={styles.actionButtonText}>Call</Text>
-                          </TouchableOpacity>
-                        )}
-                        {stop.website && (
-                          <TouchableOpacity style={styles.actionButton} onPress={() => openWebsite(stop.website!)}>
-                            <Ionicons name="globe" size={20} color="#fff" />
-                            <Text style={styles.actionButtonText}>Website</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                </View>
+                <View style={styles.resultMeta}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="navigate" size={16} color="#60a5fa" />
+                    <Text style={styles.metaText}>{place.distance_miles?.toFixed(1)} mi</Text>
+                  </View>
+                  {place.rating && (
+                    <View style={styles.metaItem}>
+                      <Ionicons name="star" size={16} color="#eab308" />
+                      <Text style={styles.metaText}>{place.rating}</Text>
                     </View>
                   )}
-                </TouchableOpacity>
-              );
-            })}
+                  {place.is_open !== null && place.is_open !== undefined && (
+                    <View style={[styles.statusBadge, place.is_open ? styles.openBadge : styles.closedBadge]}>
+                      <Text style={styles.statusText}>{place.is_open ? 'Open' : 'Closed'}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity style={styles.actionBtn} onPress={() => openInMaps(place)}>
+                    <Ionicons name="map" size={16} color="#60a5fa" />
+                    <Text style={styles.actionBtnText}>Directions</Text>
+                  </TouchableOpacity>
+                  {place.phone && (
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => callPhone(place.phone!)}>
+                      <Ionicons name="call" size={16} color="#22c55e" />
+                      <Text style={[styles.actionBtnText, { color: '#22c55e' }]}>Call</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
+
+        <View style={styles.disclaimer}>
+          <Ionicons name="information-circle" size={20} color="#6b7280" />
+          <Text style={styles.disclaimerText}>
+            Fuel prices may vary. Call ahead for current pricing and availability.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  header: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
-  },
-  backButton: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#a1a1aa',
-  },
-  formContainer: {
-    padding: 20,
-    backgroundColor: '#1a1a1a',
-    margin: 16,
-    borderRadius: 12,
-  },
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#3b82f620',
-  },
-  locationBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationBoxLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#3b82f615',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationBoxCoords: {
-    color: '#3b82f6',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginBottom: 16,
-  },
-  refreshButton: {
-    padding: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inputRow: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  label: {
-    color: '#d4d4d8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#27272a',
-    color: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 15,
-  },
-  searchButton: {
-    backgroundColor: '#22c55e',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 10,
-    gap: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  errorBox: {
-    backgroundColor: '#422006',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  errorText: {
-    color: '#f59e0b',
-    fontSize: 13,
-    flex: 1,
-  },
-  resultsContainer: {
-    padding: 16,
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  stopCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
-  },
-  stopCardExpanded: {
-    borderLeftColor: '#22c55e',
-  },
-  stopHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  stopHeaderLeft: {
-    flex: 1,
-  },
-  stopName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 6,
-  },
-  brandBadge: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  brandBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  stopQuickInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  quickInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickInfoText: {
-    color: '#a1a1aa',
-    fontSize: 13,
-  },
-  stopDetails: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#27272a',
-  },
-  detailSection: {
-    marginBottom: 12,
-  },
-  detailLabel: {
-    color: '#d4d4d8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  detailValue: {
-    color: '#a1a1aa',
-    fontSize: 14,
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: '#27272a',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  serviceTag: {
-    backgroundColor: '#166534',
-  },
-  tagText: {
-    color: '#d4d4d8',
-    fontSize: 12,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#27272a',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  backButton: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  content: { flex: 1 },
+  card: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, margin: 16, marginTop: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  subtitle: { color: '#9ca3af', fontSize: 13, marginBottom: 16 },
+  searchSection: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  searchInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  detectBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#27272a', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#22c55e30' },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46', overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  promptBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#052e16', borderRadius: 10, padding: 14, marginTop: 10 },
+  promptText: { color: '#86efac', fontSize: 14, fontWeight: '500', flex: 1 },
+  loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { color: '#a1a1aa', fontSize: 14 },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12, paddingHorizontal: 20 },
+  errorText: { color: '#22c55e', fontSize: 15, textAlign: 'center' },
+  errorSubtext: { color: '#6b7280', fontSize: 13, textAlign: 'center' },
+  resultsContainer: { paddingHorizontal: 16, gap: 12 },
+  resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
+  resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
+  resultHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  iconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#052e16', alignItems: 'center', justifyContent: 'center' },
+  resultInfo: { flex: 1 },
+  resultName: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  resultAddress: { color: '#a1a1aa', fontSize: 13 },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 12 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { color: '#d4d4d8', fontSize: 13 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  openBadge: { backgroundColor: '#052e16' },
+  closedBadge: { backgroundColor: '#450a0a' },
+  statusText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  actionRow: { flexDirection: 'row', gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#27272a' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#27272a', borderRadius: 6 },
+  actionBtnText: { color: '#60a5fa', fontSize: 13, fontWeight: '500' },
+  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 16, margin: 16, backgroundColor: '#1c1917', borderRadius: 8 },
+  disclaimerText: { color: '#6b7280', fontSize: 12, flex: 1, lineHeight: 18 },
 });
