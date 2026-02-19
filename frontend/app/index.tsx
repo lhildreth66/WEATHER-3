@@ -2010,4 +2010,26 @@ const styles = StyleSheet.create({
   radarWebView: {
     flex: 1,
   },
+  quickAccessRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  quickAccessBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#27272a',
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  quickAccessText: {
+    color: '#e4e4e7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
