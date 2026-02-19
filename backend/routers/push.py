@@ -207,7 +207,7 @@ async def send_test_notification(
     push_service = PushNotificationService(db)
     
     result = await push_service.send_to_user(
-        user_id=user["user_id"],
+        user_id=user["sub"],
         title="Test Notification",
         body="This is a test notification from RouteCast!",
         data={"type": "test"},
