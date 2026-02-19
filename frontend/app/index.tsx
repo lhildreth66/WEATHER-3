@@ -1251,6 +1251,21 @@ const styles = StyleSheet.create({
   favoriteButton: {
     padding: 8,
   },
+  accountButton: {
+    padding: 8,
+  },
+  accountLoggedIn: {
+    position: 'relative',
+  },
+  premiumDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+  },
   descriptionBox: {
     backgroundColor: 'rgba(234, 179, 8, 0.1)',
     borderRadius: 10,
