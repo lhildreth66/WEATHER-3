@@ -192,6 +192,14 @@ export default function CasinosScreen() {
               <Text style={styles.locationText}>Searching near: {currentLocation.name}</Text>
             </View>
           )}
+          
+          {/* Show prompt when no location and no search */}
+          {!currentLocation && !loading && results.length === 0 && !gettingLocation && (
+            <View style={styles.promptBox}>
+              <Ionicons name="search" size={20} color="#eab308" />
+              <Text style={styles.promptText}>Enter a city or address above to find casinos</Text>
+            </View>
+          )}
         </View>
 
         {loading ? (
@@ -203,6 +211,12 @@ export default function CasinosScreen() {
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color="#f59e0b" />
             <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : results.length === 0 && currentLocation ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="search" size={48} color="#6b7280" />
+            <Text style={styles.errorText}>No casinos found within 100 miles</Text>
+            <Text style={styles.errorSubtext}>Try searching a different location</Text>
           </View>
         ) : (
           <View style={styles.resultsContainer}>
