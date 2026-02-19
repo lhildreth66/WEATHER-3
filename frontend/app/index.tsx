@@ -103,6 +103,7 @@ export default function HomeScreen() {
   const [vehicleType, setVehicleType] = useState('car');
   const [truckerMode, setTruckerMode] = useState(false);
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
+  const [vehicleHeight, setVehicleHeight] = useState('13.6'); // Default truck height in feet
   
   // Departure time
   const [departureTime, setDepartureTime] = useState(new Date());
