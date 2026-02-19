@@ -8,6 +8,29 @@ RouteCast is a React Native/Expo mobile app providing weather-smart route planni
 - **Backend**: Python FastAPI
 - **Database**: MongoDB
 - **APIs**: NOAA Weather Service, Mapbox Geocoding, Google Places API
+- **Payments**: Stripe (web), Apple IAP (iOS), Google Play Billing (Android)
+- **Email**: SendGrid
+- **Auth**: JWT (access + refresh tokens)
+
+## Domain Structure (Production)
+- `routecastweather.com` → Marketing/landing page (existing)
+- `app.routecastweather.com` → Web app (login + dashboard)
+- `api.routecastweather.com` → FastAPI backend
+
+## Subscription Tiers
+
+### Free Tier
+- Basic route weather
+- Limited alerts (1 route monitor)
+
+### Premium ($9.99/month or $59.99/year)
+- 7-day free trial
+- Unlimited route monitoring
+- Push weather alerts
+- AI-powered recommendations
+- Advanced trucker features
+- Boondocking tools
+- Priority support (yearly)
 
 ## Core Features
 
@@ -45,65 +68,144 @@ RouteCast is a React Native/Expo mobile app providing weather-smart route planni
 - Weight Restricted Routes info
 - Bridge Height Hazards tab on route page
 
+### Authentication System
+- Email + password signup
+- Email verification (SendGrid)
+- Password reset
+- JWT access + refresh tokens
+- `/api/me` endpoint with subscription status
+
+### Subscription System
+- Stripe Subscriptions (web)
+- Apple In-App Purchase (iOS) - scaffold ready
+- Google Play Billing (Android) - scaffold ready
+- Unified entitlements system
+- 7-day free trial
+- Admin controls (grant/revoke)
+
 ### User Experience
 - Clear X buttons on address inputs
 - Location detect button on all POI screens
 - Comprehensive How To Use guide
 - Push Weather Alerts (via external worker)
 - Favorites and Recent routes
-- NO AI chat bubble (removed per user request)
-- Voice alerts for road conditions only (hands-free)
 
-## Implemented Features (as of Dec 2025)
+## API Structure
 
-### Completed This Session
-1. **AI Chat Bubble Removed** - Removed from both home and route pages
-2. **Truck Services Fixed** - Added address search + location detect button
-3. **Truck Stops Fixed** - Added address search + location detect button  
-4. **Truck Parking Fixed** - Added address search + location detect button
-5. **Water Budget with 3 Tanks** - Fresh, Gray, Black water tanks
-6. **Bridge Height Hazards Tab** - Added to route page
-7. **Clear X Buttons** - On origin/destination inputs
-8. **How To Use Page** - Comprehensive guide with support email
+### Authentication (/api/auth/*)
+- POST /signup - Register
+- POST /login - Login
+- POST /refresh - Refresh token
+- POST /verify-email - Verify email
+- POST /forgot-password - Request reset
+- POST /reset-password - Reset password
+- GET /me - User profile + subscription
 
-### Previous Implementation
-- All Boondocker/Trucker API endpoints (Google Places)
-- Address search with autocomplete on all feature screens
-- Trucker Mode with vehicle height input
-- Backend route weather calculation
+### Subscription (/api/subscription/*)
+- GET /status - Current status
+- GET /plans - Available plans
+- POST /start-trial - Start 7-day trial
+- POST /checkout - Create Stripe checkout
+- POST /verify/apple - Verify Apple receipt
+- POST /verify/google - Verify Google receipt
 
-## Known Limitations
-- **Bridge Clearance Alerts**: Currently returns empty (no real bridge database integrated yet)
-- **Weight Restrictions**: Returns general federal limits only
-- **Location Detection**: May fail in web preview, use address search as fallback
+### Admin (/api/admin/*)
+- GET /users - List users
+- GET /users/{id} - User details
+- POST /users/{id}/grant-subscription
+- POST /users/{id}/revoke-subscription
+- GET /stats - Platform stats
 
-## Push Notifications
-Push notifications are handled by an **external worker** deployed on Render.com:
-- Worker files: `backend/route_alerts.py`, `backend/run_route_alerts_worker.py`
-- Runs every ~70 minutes via cron
-- Also triggered on-demand when user saves/starts monitoring a route
-- Uses Firebase/Expo for push delivery
-- MongoDB stores route monitors and push tokens
+### Webhooks (/api/webhook/*)
+- POST /stripe - Stripe events
+- POST /apple - Apple notifications
+- POST /google - Google notifications
+
+## Database Schema (MongoDB)
+
+### users collection
+```javascript
+{
+  user_id: string,
+  email: string,
+  name: string,
+  hashed_password: string,
+  email_verified: boolean,
+  created_at: datetime,
+  updated_at: datetime,
+  subscription_status: "inactive" | "active" | "trialing" | "canceled" | "expired",
+  subscription_provider: "stripe" | "apple" | "google" | "admin" | null,
+  subscription_plan: "free" | "monthly" | "yearly",
+  subscription_expiration: datetime | null,
+  stripe_customer_id: string | null,
+  stripe_subscription_id: string | null,
+  apple_original_transaction_id: string | null,
+  google_purchase_token: string | null,
+  trial_used: boolean,
+  trial_start: datetime | null,
+  trial_end: datetime | null
+}
+```
 
 ## Environment Variables
-- `MAPBOX_ACCESS_TOKEN` - For geocoding
-- `GOOGLE_API_KEY` - For Places API
-- `MONGO_URL` - Database connection
+
+### Backend (.env)
+```
+MONGO_URL=<mongodb-url>
+DB_NAME=routecast
+MAPBOX_ACCESS_TOKEN=<token>
+GOOGLE_API_KEY=<key>
+NOAA_USER_AGENT=Routecast/1.0
+JWT_SECRET_KEY=<secret>
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+APP_URL=https://app.routecastweather.com
+API_URL=https://api.routecastweather.com
+SENDGRID_API_KEY=<key>
+SENDER_EMAIL=noreply@routecastweather.com
+STRIPE_API_KEY=<key>
+STRIPE_WEBHOOK_SECRET=<secret>
+ADMIN_API_KEY=<key>
+```
+
+## Completed Features
+
+### Authentication & Subscription (Dec 2025)
+- Full auth system with JWT tokens
+- Email verification flow
+- Password reset flow
+- Stripe checkout integration
+- Unified entitlements system
+- Admin controls for subscriptions
+- Apple/Google receipt verification scaffolds
+
+### Previous Implementation
+- All Boondocker/Trucker API endpoints
+- AI chat bubble removed
+- Truck Services/Stops/Parking with location detect
+- Water Budget with 3 tanks
+- How To Use page
+- Clear X buttons on inputs
 
 ## Pending Tasks
 
 ### P0 (Critical)
-- Integrate real bridge clearance data (OSM Overpass API as fallback, LCM API for production)
+- Integrate real bridge clearance data
+- Complete Apple IAP implementation
+- Complete Google Play Billing implementation
 
 ### P1 (High Priority)
-- User requested preview URL permanence (need production deployment)
-- Verify all location-based features work properly
+- Deploy to Render.com production
+- Configure custom domains
+- SendGrid domain authentication
 
 ### P2 (Medium Priority)
-- Holistic UI/appearance improvement
-- Refactor server.py into modular routers
-- Add screenshots to User Guide
+- Frontend auth UI (login/signup screens)
+- Subscription upgrade UI
+- Admin dashboard UI
 
 ### P3 (Low Priority)
-- Location-specific weight restriction data
 - Offline mode support
+- Rate limiting
+- Analytics integration
