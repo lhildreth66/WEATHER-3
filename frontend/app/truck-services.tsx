@@ -80,13 +80,26 @@ export default function TruckServicesScreen() {
     setServices([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/truck-services/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
+      const resp = await axios.get(`${API_BASE}/api/trucker/repair-services`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
       });
-      setServices(resp.data.services || []);
-      if (resp.data.services && resp.data.services.length === 0) {
+      // Map API response to expected format
+      const mappedServices = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        type: 'Truck Repair',
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        services: ['Repair', 'Service'],
+        phone: place.phone,
+      }));
+      setServices(mappedServices);
+      if (mappedServices.length === 0) {
         setError('No truck services found in this area. Try increasing the search radius.');
       }
     } catch (err: any) {
