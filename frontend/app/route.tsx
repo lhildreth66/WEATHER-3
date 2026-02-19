@@ -383,9 +383,6 @@ export default function RouteScreen() {
     }
     setExpandedCards(newExpanded);
   };
-  
-  // Speaking state
-  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     if (params.routeData) {
