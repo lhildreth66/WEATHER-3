@@ -364,7 +364,7 @@ export default function RouteScreen() {
   const params = useLocalSearchParams();
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'conditions' | 'directions' | 'alerts'>('conditions');
+  const [activeTab, setActiveTab] = useState<'conditions' | 'directions' | 'alerts' | 'bridges'>('conditions');
   const [isSpeaking, setIsSpeaking] = useState(false);
   
   // Radar map state
