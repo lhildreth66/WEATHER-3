@@ -83,15 +83,27 @@ export default function TruckStopsScreen() {
     setStops([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/truck-stops/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
-      }, {
-        timeout: 65000, // 65 second timeout
+      const resp = await axios.get(`${API_BASE}/api/trucker/truck-stops`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
+        timeout: 65000,
       });
-      setStops(resp.data.stops || []);
-      if (resp.data.stops && resp.data.stops.length === 0) {
+      // Map the response to match expected format
+      const mappedStops = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        amenities: [],
+        fuel_types: ['Diesel'],
+        services: [],
+        rating: place.rating,
+      }));
+      setStops(mappedStops);
+      if (mappedStops.length === 0) {
         setError('No truck stops found in this area. Try increasing the search radius.');
       }
     } catch (err: any) {
