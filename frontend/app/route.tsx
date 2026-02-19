@@ -748,27 +748,39 @@ export default function RouteScreen() {
           style={[styles.tab, activeTab === 'conditions' && styles.tabActive]}
           onPress={() => setActiveTab('conditions')}
         >
-          <Ionicons name="car" size={18} color={activeTab === 'conditions' ? '#eab308' : '#6b7280'} />
+          <Ionicons name="car" size={16} color={activeTab === 'conditions' ? '#eab308' : '#6b7280'} />
           <Text style={[styles.tabText, activeTab === 'conditions' && styles.tabTextActive]}>Road</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'directions' && styles.tabActive]}
-          onPress={() => setActiveTab('directions')}
+          style={[styles.tab, activeTab === 'bridges' && styles.tabActive]}
+          onPress={() => setActiveTab('bridges')}
         >
-          <Ionicons name="navigate" size={18} color={activeTab === 'directions' ? '#eab308' : '#6b7280'} />
-          <Text style={[styles.tabText, activeTab === 'directions' && styles.tabTextActive]}>Directions</Text>
+          <Ionicons name="git-commit-outline" size={16} color={activeTab === 'bridges' ? '#f59e0b' : '#6b7280'} />
+          <Text style={[styles.tabText, activeTab === 'bridges' && styles.tabTextActive]}>Bridges</Text>
+          {routeData.bridge_clearance_alerts && routeData.bridge_clearance_alerts.length > 0 && (
+            <View style={[styles.tabBadge, { backgroundColor: '#f59e0b' }]}>
+              <Text style={styles.tabBadgeText}>{routeData.bridge_clearance_alerts.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'alerts' && styles.tabActive]}
           onPress={() => setActiveTab('alerts')}
         >
-          <Ionicons name="warning" size={18} color={activeTab === 'alerts' ? '#ef4444' : '#6b7280'} />
+          <Ionicons name="warning" size={16} color={activeTab === 'alerts' ? '#ef4444' : '#6b7280'} />
           <Text style={[styles.tabText, activeTab === 'alerts' && styles.tabTextActive]}>Alerts</Text>
           {routeData.hazard_alerts?.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{routeData.hazard_alerts.length}</Text>
             </View>
           )}
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'directions' && styles.tabActive]}
+          onPress={() => setActiveTab('directions')}
+        >
+          <Ionicons name="navigate" size={16} color={activeTab === 'directions' ? '#eab308' : '#6b7280'} />
+          <Text style={[styles.tabText, activeTab === 'directions' && styles.tabTextActive]}>Nav</Text>
         </TouchableOpacity>
       </View>
 
