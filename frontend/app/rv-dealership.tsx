@@ -66,14 +66,25 @@ export default function RVDealershipScreen() {
     setDealerships([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/rv-dealerships/search`, {
-        latitude: lat,
-        longitude: lon,
-        radius_miles: 10,
+      const resp = await axios.get(`${API_BASE}/api/boondocking/rv-dealers`, {
+        params: {
+          latitude: lat,
+          longitude: lon,
+          radius_miles: 50,
+        },
       });
-      setDealerships(resp.data.dealerships || []);
-      if (resp.data.dealerships?.length === 0) {
-        setError('No RV dealerships found within 10 miles. Try increasing your search radius.');
+      // Map API response to expected format
+      const mappedDealerships = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        address: place.address,
+      }));
+      setDealerships(mappedDealerships);
+      if (mappedDealerships.length === 0) {
+        setError('No RV dealerships found within 50 miles.');
       }
     } catch (err: any) {
       console.error('RV dealership search error:', err);
