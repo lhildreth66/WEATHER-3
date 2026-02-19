@@ -113,11 +113,16 @@ curl https://api.routecastweather.com/api/health
 curl -X POST https://api.routecastweather.com/api/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"SecurePass123!"}'
-# Expected: {"success":true,"message":"..."}
+# Expected: {"access_token":"...","refresh_token":"...","token_type":"bearer"}
+
+# Get user profile (with token from signup/login)
+curl https://api.routecastweather.com/api/auth/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+# Expected: {"email":"...","subscription_status":"inactive",...}
 
 # Subscription plans
-curl https://api.routecastweather.com/api/subscriptions/plans
-# Expected: [{"id":"monthly","name":"Monthly",...},...]
+curl https://api.routecastweather.com/api/subscription/plans
+# Expected: {"plans":[{"id":"monthly",...},{"id":"yearly",...}]}
 ```
 
 ### Verify Frontend:
