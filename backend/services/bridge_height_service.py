@@ -407,6 +407,26 @@ async def get_bridge_clearances_for_route(
     # Sort by distance along route
     alerts.sort(key=lambda x: x["distance_miles"])
     
+    # Deduplicate: group alerts within 0.1 miles of each other with same name
+    deduplicated = []
+    for alert in alerts:
+        is_dup = False
+        for existing in deduplicated:
+            # Same name and within 0.1 miles
+            if (existing["location"] == alert["location"] and 
+                abs(existing["distance_miles"] - alert["distance_miles"]) < 0.1):
+                is_dup = True
+                break
+            # Same coordinates (within ~100 meters)
+            if (abs(existing["latitude"] - alert["latitude"]) < 0.001 and
+                abs(existing["longitude"] - alert["longitude"]) < 0.001):
+                is_dup = True
+                break
+        if not is_dup:
+            deduplicated.append(alert)
+    
+    alerts = deduplicated
+    
     # Filter to only show concerning clearances (< 3ft margin) unless very few results
     if len(alerts) > 10:
         alerts = [a for a in alerts if a["margin_ft"] < 3.0 or a["warning_level"] != "safe"]
