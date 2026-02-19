@@ -891,6 +891,66 @@ export default function RouteScreen() {
           </View>
         )}
 
+        {/* Bridge Height Hazards Tab */}
+        {activeTab === 'bridges' && (
+          <View style={styles.bridgesTab}>
+            <Text style={styles.sectionTitle}>Bridge Height Hazards</Text>
+            <Text style={styles.sectionSubtitle}>Low clearances that may affect your vehicle</Text>
+            
+            {routeData.bridge_clearance_alerts && routeData.bridge_clearance_alerts.length > 0 ? (
+              <>
+                {routeData.bridge_clearance_alerts.map((alert, index) => (
+                  <View key={index} style={styles.bridgeCard}>
+                    <View style={styles.bridgeHeader}>
+                      <View style={styles.bridgeIconBox}>
+                        <Ionicons name="warning" size={24} color="#f59e0b" />
+                      </View>
+                      <View style={styles.bridgeInfo}>
+                        <Text style={styles.bridgeName}>{alert.bridge_name}</Text>
+                        <Text style={styles.bridgeDistance}>{Math.round(alert.distance_miles)} miles ahead</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.bridgeClearanceRow}>
+                      <View style={styles.clearanceBox}>
+                        <Text style={styles.clearanceLabel}>CLEARANCE</Text>
+                        <Text style={styles.clearanceValue}>{alert.clearance_ft.toFixed(1)} ft</Text>
+                      </View>
+                      <View style={styles.clearanceDivider} />
+                      <View style={styles.clearanceBox}>
+                        <Text style={styles.clearanceLabel}>YOUR HEIGHT</Text>
+                        <Text style={styles.clearanceValueDanger}>{alert.vehicle_height_ft.toFixed(1)} ft</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.bridgeWarning}>
+                      <Ionicons name="alert-circle" size={18} color="#fecaca" />
+                      <Text style={styles.bridgeWarningText}>{alert.warning}</Text>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <View style={styles.noBridgeAlerts}>
+                <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+                <Text style={styles.noBridgeTitle}>All Clear!</Text>
+                <Text style={styles.noBridgeText}>
+                  {routeData.trucker_warnings?.length > 0 
+                    ? "No low bridges detected for your vehicle height."
+                    : "Enable Trucker Mode and enter your vehicle height on the home screen to see bridge clearance alerts."}
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.bridgeDisclaimer}>
+              <Ionicons name="information-circle" size={18} color="#6b7280" />
+              <Text style={styles.bridgeDisclaimerText}>
+                Bridge data is for reference only. Always verify with current signage. Some temporary restrictions may not be reflected.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Turn-by-Turn Directions Tab */}
         {activeTab === 'directions' && (
           <View style={styles.directionsTab}>
