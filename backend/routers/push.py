@@ -112,8 +112,14 @@ async def create_route_monitor(
     """
     from server import db
     
+    # Fetch full user from database to check subscription
+    user_record = await db.users.find_one({"user_id": user["sub"]})
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     # Check subscription status
-    sub_status = user.get("subscription_status", "inactive")
+    sub_status = user_record.get("subscription_status", "inactive")
     if sub_status not in ["active", "trialing"]:
         raise HTTPException(
             status_code=403,
@@ -121,8 +127,9 @@ async def create_route_monitor(
         )
     
     # Check user's monitor limit
-    monitor_service = await get_monitor_service()
-    existing = await monitor_service.get_user_monitors(user["user_id"])
+    push_service = PushNotificationService(db)
+    monitor_service = RouteMonitorService(db, push_service)
+    existing = await monitor_service.get_user_monitors(user["sub"])
     
     # Free trial: 3 monitors, Premium: 10 monitors
     max_monitors = 3 if sub_status == "trialing" else 10
@@ -134,11 +141,8 @@ async def create_route_monitor(
         )
     
     # Create the monitor
-    push_service = PushNotificationService(db)
-    monitor_service = RouteMonitorService(db, push_service)
-    
     monitor_id = await monitor_service.create_route_monitor(
-        user_id=user["user_id"],
+        user_id=user["sub"],
         route_id=request.route_id,
         origin=request.origin,
         destination=request.destination,
