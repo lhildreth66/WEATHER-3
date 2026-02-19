@@ -43,6 +43,7 @@ export default function CasinosScreen() {
 
   const getCurrentLocation = async () => {
     setGettingLocation(true);
+    setError('');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
@@ -51,10 +52,14 @@ export default function CasinosScreen() {
         setCurrentLocation(locationData);
         searchPlaces(loc.coords.latitude, loc.coords.longitude);
       } else {
-        setError('Enable location or search for a city above');
+        // Location not available - prompt user to search
+        setError('');
+        setCurrentLocation(null);
       }
     } catch (err) {
-      setError('Enable location or search for a city above');
+      // Location detection failed - this is normal in browser preview
+      setError('');
+      setCurrentLocation(null);
     } finally {
       setGettingLocation(false);
     }
