@@ -1783,6 +1783,939 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ==================== Boondocker Models ====================
+
+class ChecklistItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    text: str
+    checked: bool = False
+    is_default: bool = True
+
+class ChecklistResponse(BaseModel):
+    items: List[ChecklistItem]
+
+class PlaceResult(BaseModel):
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    rating: Optional[float] = None
+    total_ratings: Optional[int] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    place_id: str
+    distance_miles: Optional[float] = None
+    is_open: Optional[bool] = None
+    types: List[str] = []
+
+class PlacesSearchResponse(BaseModel):
+    results: List[PlaceResult]
+    total: int
+
+class SolarForecastRequest(BaseModel):
+    latitude: float
+    longitude: float
+    panel_watts: float = 400
+    battery_capacity_ah: float = 200
+    daily_consumption_wh: float = 2000
+
+class SolarForecastResponse(BaseModel):
+    location: str
+    forecast_date: str
+    sunrise: str
+    sunset: str
+    daylight_hours: float
+    cloud_cover_percent: int
+    expected_sun_hours: float
+    estimated_production_wh: float
+    consumption_wh: float
+    net_energy_wh: float
+    battery_charge_percent: float
+    recommendation: str
+
+class PropaneUsageRequest(BaseModel):
+    latitude: float
+    longitude: float
+    heater_btu: float = 30000
+    cooking_hours_per_day: float = 1.0
+    water_heater_btu: float = 10000
+    tank_size_gallons: float = 20
+
+class PropaneUsageResponse(BaseModel):
+    location: str
+    current_temp: int
+    low_temp: int
+    heating_hours_needed: float
+    daily_propane_gallons: float
+    days_until_empty: float
+    recommendation: str
+
+class WindShelterRequest(BaseModel):
+    latitude: float
+    longitude: float
+    rv_length_ft: float = 30
+
+class WindShelterResponse(BaseModel):
+    location: str
+    wind_speed_mph: int
+    wind_direction: str
+    wind_gust_mph: Optional[int]
+    recommended_orientation: str
+    shelter_score: int
+    tips: List[str]
+
+class ConnectivityResponse(BaseModel):
+    latitude: float
+    longitude: float
+    location_name: str
+    carriers: List[Dict[str, Any]]
+    overall_rating: str
+    recommendation: str
+
+class CampsiteIndexRequest(BaseModel):
+    latitude: float
+    longitude: float
+
+class CampsiteIndexResponse(BaseModel):
+    latitude: float
+    longitude: float
+    location_name: str
+    overall_score: int
+    overall_rating: str
+    factors: Dict[str, Dict[str, Any]]
+    recommendation: str
+
+# ==================== Trucker Models ====================
+
+class TruckStopResult(BaseModel):
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    distance_miles: float
+    rating: Optional[float] = None
+    amenities: List[str] = []
+    fuel_prices: Optional[Dict[str, float]] = None
+    phone: Optional[str] = None
+    is_open: Optional[bool] = None
+
+class WeighStationResult(BaseModel):
+    name: str
+    location: str
+    latitude: float
+    longitude: float
+    distance_miles: float
+    highway: str
+    direction: str
+    status: str  # open, closed, unknown
+    bypass_available: bool
+
+class BridgeClearanceResult(BaseModel):
+    location: str
+    latitude: float
+    longitude: float
+    clearance_ft: float
+    highway: str
+    direction: Optional[str]
+    distance_miles: float
+    warning_level: str  # safe, caution, danger
+
+class TruckParkingResult(BaseModel):
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    distance_miles: float
+    spaces_total: Optional[int] = None
+    spaces_available: Optional[int] = None
+    amenities: List[str] = []
+    is_free: bool = False
+
+class WeightRestriction(BaseModel):
+    road_name: str
+    restriction_type: str  # weight_limit, seasonal, bridge
+    max_weight_tons: Optional[float] = None
+    description: str
+    latitude: float
+    longitude: float
+    distance_miles: float
+
+# ==================== Helper Functions for Places API ====================
+
+async def search_google_places(
+    latitude: float, 
+    longitude: float, 
+    query: str = None,
+    place_type: str = None,
+    radius_meters: int = 16093,  # 10 miles default
+    keyword: str = None
+) -> List[PlaceResult]:
+    """Search Google Places API for nearby locations."""
+    results = []
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Use nearby search
+            url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+            params = {
+                'location': f"{latitude},{longitude}",
+                'radius': radius_meters,
+                'key': GOOGLE_API_KEY
+            }
+            
+            if query:
+                params['keyword'] = query
+            if place_type:
+                params['type'] = place_type
+            if keyword:
+                params['keyword'] = keyword
+                
+            response = await client.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get('status') == 'OK':
+                    for place in data.get('results', [])[:20]:
+                        loc = place.get('geometry', {}).get('location', {})
+                        place_lat = loc.get('lat', 0)
+                        place_lon = loc.get('lng', 0)
+                        
+                        # Calculate distance
+                        dist = haversine_distance(latitude, longitude, place_lat, place_lon)
+                        
+                        results.append(PlaceResult(
+                            name=place.get('name', 'Unknown'),
+                            address=place.get('vicinity', ''),
+                            latitude=place_lat,
+                            longitude=place_lon,
+                            rating=place.get('rating'),
+                            total_ratings=place.get('user_ratings_total'),
+                            place_id=place.get('place_id', ''),
+                            distance_miles=round(dist, 1),
+                            is_open=place.get('opening_hours', {}).get('open_now'),
+                            types=place.get('types', [])
+                        ))
+                else:
+                    logger.warning(f"Google Places API status: {data.get('status')} - {data.get('error_message', '')}")
+                    
+    except Exception as e:
+        logger.error(f"Google Places search error: {e}")
+    
+    # Sort by distance
+    results.sort(key=lambda x: x.distance_miles or 999)
+    return results
+
+async def search_places_text(
+    query: str,
+    latitude: float,
+    longitude: float,
+    radius_meters: int = 32186  # 20 miles
+) -> List[PlaceResult]:
+    """Text search for places with location bias."""
+    results = []
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+            params = {
+                'query': query,
+                'location': f"{latitude},{longitude}",
+                'radius': radius_meters,
+                'key': GOOGLE_API_KEY
+            }
+            
+            response = await client.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get('status') == 'OK':
+                    for place in data.get('results', [])[:20]:
+                        loc = place.get('geometry', {}).get('location', {})
+                        place_lat = loc.get('lat', 0)
+                        place_lon = loc.get('lng', 0)
+                        
+                        dist = haversine_distance(latitude, longitude, place_lat, place_lon)
+                        
+                        results.append(PlaceResult(
+                            name=place.get('name', 'Unknown'),
+                            address=place.get('formatted_address', ''),
+                            latitude=place_lat,
+                            longitude=place_lon,
+                            rating=place.get('rating'),
+                            total_ratings=place.get('user_ratings_total'),
+                            place_id=place.get('place_id', ''),
+                            distance_miles=round(dist, 1),
+                            is_open=place.get('opening_hours', {}).get('open_now'),
+                            types=place.get('types', [])
+                        ))
+                        
+    except Exception as e:
+        logger.error(f"Google Places text search error: {e}")
+    
+    results.sort(key=lambda x: x.distance_miles or 999)
+    return results
+
+# ==================== Boondocker API Endpoints ====================
+
+# Default camp prep checklist items
+DEFAULT_CHECKLIST = [
+    "Fresh water tank filled",
+    "Propane tanks full", 
+    "Batteries charged",
+    "Grey/black tanks empty",
+    "Tire pressure checked",
+    "Hitch and connections secure",
+    "Food and supplies stocked",
+    "First aid kit packed",
+    "Maps and GPS updated",
+    "Emergency contact list ready"
+]
+
+@api_router.get("/boondocking/checklist")
+async def get_checklist(user_id: str = "default"):
+    """Get camp prep checklist for user."""
+    checklist = await db.checklists.find_one({"user_id": user_id})
+    
+    if not checklist:
+        # Return default checklist
+        items = [ChecklistItem(text=item, is_default=True) for item in DEFAULT_CHECKLIST]
+        return {"items": [item.dict() for item in items]}
+    
+    return {"items": checklist.get("items", [])}
+
+@api_router.post("/boondocking/checklist")
+async def save_checklist(items: List[dict], user_id: str = "default"):
+    """Save camp prep checklist."""
+    await db.checklists.update_one(
+        {"user_id": user_id},
+        {"$set": {"items": items, "updated_at": datetime.utcnow()}},
+        upsert=True
+    )
+    return {"success": True}
+
+@api_router.get("/boondocking/free-camping", response_model=PlacesSearchResponse)
+async def find_free_camping(latitude: float, longitude: float, radius_miles: int = 25):
+    """Find free camping and boondocking spots nearby."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    # Search for various camping-related places
+    results = []
+    
+    # Search for campgrounds and RV parks
+    campgrounds = await search_places_text(
+        "free camping boondocking dispersed camping BLM land",
+        latitude, longitude, radius_meters
+    )
+    results.extend(campgrounds)
+    
+    # Also search for public lands and recreation areas
+    public_lands = await search_places_text(
+        "national forest campground public land camping",
+        latitude, longitude, radius_meters
+    )
+    results.extend(public_lands)
+    
+    # Deduplicate by place_id
+    seen = set()
+    unique = []
+    for r in results:
+        if r.place_id not in seen:
+            seen.add(r.place_id)
+            unique.append(r)
+    
+    unique.sort(key=lambda x: x.distance_miles or 999)
+    
+    return PlacesSearchResponse(results=unique[:15], total=len(unique))
+
+@api_router.get("/boondocking/casinos", response_model=PlacesSearchResponse)
+async def find_casinos(latitude: float, longitude: float, radius_miles: int = 50):
+    """Find casinos that may allow overnight RV parking."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_google_places(
+        latitude, longitude,
+        keyword="casino",
+        place_type="casino",
+        radius_meters=radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/boondocking/walmart", response_model=PlacesSearchResponse)
+async def find_walmart_parking(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find Walmart stores that may allow overnight parking."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "Walmart Supercenter",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/boondocking/cracker-barrel", response_model=PlacesSearchResponse)
+async def find_cracker_barrel(latitude: float, longitude: float, radius_miles: int = 50):
+    """Find Cracker Barrel restaurants that allow overnight parking."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "Cracker Barrel Old Country Store",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/boondocking/dump-stations", response_model=PlacesSearchResponse)
+async def find_dump_stations(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find RV dump stations nearby."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "RV dump station sanitary dump",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/boondocking/groceries", response_model=PlacesSearchResponse)
+async def find_grocery_stores(latitude: float, longitude: float, radius_miles: int = 20):
+    """Find grocery stores (last chance supplies)."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_google_places(
+        latitude, longitude,
+        place_type="supermarket",
+        radius_meters=radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/boondocking/rv-dealers", response_model=PlacesSearchResponse)
+async def find_rv_dealers(latitude: float, longitude: float, radius_miles: int = 50):
+    """Find RV dealerships for repairs and parts."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "RV dealer RV sales RV service",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.post("/boondocking/solar-forecast", response_model=SolarForecastResponse)
+async def calculate_solar_forecast(request: SolarForecastRequest):
+    """Calculate solar power forecast based on weather and panel specs."""
+    
+    # Get weather data for location
+    weather = await get_noaa_weather(request.latitude, request.longitude)
+    location_name = await reverse_geocode(request.latitude, request.longitude) or "Unknown Location"
+    
+    # Default values if weather unavailable
+    cloud_cover = 20
+    sunrise = "6:30 AM"
+    sunset = "6:30 PM"
+    daylight_hours = 12.0
+    
+    if weather:
+        sunrise = weather.sunrise or sunrise
+        sunset = weather.sunset or sunset
+        
+        # Estimate cloud cover from conditions
+        conditions = (weather.conditions or "").lower()
+        if "clear" in conditions or "sunny" in conditions:
+            cloud_cover = 10
+        elif "partly" in conditions:
+            cloud_cover = 40
+        elif "mostly cloudy" in conditions:
+            cloud_cover = 70
+        elif "cloudy" in conditions or "overcast" in conditions:
+            cloud_cover = 85
+        elif "rain" in conditions or "storm" in conditions:
+            cloud_cover = 90
+    
+    # Calculate expected sun hours (affected by clouds)
+    sun_efficiency = (100 - cloud_cover) / 100
+    expected_sun_hours = daylight_hours * sun_efficiency * 0.7  # 0.7 factor for peak sun hours
+    
+    # Calculate production (panel watts * peak sun hours)
+    estimated_production = request.panel_watts * expected_sun_hours
+    
+    # Net energy
+    net_energy = estimated_production - request.daily_consumption_wh
+    
+    # Battery charge calculation (assuming 12V system)
+    battery_wh = request.battery_capacity_ah * 12
+    charge_percent = min(100, max(0, ((battery_wh + net_energy) / battery_wh) * 100))
+    
+    # Generate recommendation
+    if net_energy > 500:
+        recommendation = "☀️ Excellent solar day! You'll have surplus energy to fully charge batteries."
+    elif net_energy > 0:
+        recommendation = "👍 Good solar production expected. Should meet your daily needs."
+    elif net_energy > -500:
+        recommendation = "⚠️ Marginal solar day. Consider reducing consumption or running generator."
+    else:
+        recommendation = "🔌 Poor solar conditions. Plan to use generator or shore power for charging."
+    
+    return SolarForecastResponse(
+        location=location_name,
+        forecast_date=datetime.now().strftime("%Y-%m-%d"),
+        sunrise=sunrise,
+        sunset=sunset,
+        daylight_hours=daylight_hours,
+        cloud_cover_percent=cloud_cover,
+        expected_sun_hours=round(expected_sun_hours, 1),
+        estimated_production_wh=round(estimated_production, 0),
+        consumption_wh=request.daily_consumption_wh,
+        net_energy_wh=round(net_energy, 0),
+        battery_charge_percent=round(charge_percent, 0),
+        recommendation=recommendation
+    )
+
+@api_router.post("/boondocking/propane-usage", response_model=PropaneUsageResponse)
+async def calculate_propane_usage(request: PropaneUsageRequest):
+    """Calculate propane usage based on BTU ratings and weather."""
+    
+    # Get weather for temperature forecast
+    weather = await get_noaa_weather(request.latitude, request.longitude)
+    location_name = await reverse_geocode(request.latitude, request.longitude) or "Unknown Location"
+    
+    current_temp = 50
+    low_temp = 35
+    
+    if weather:
+        current_temp = weather.temperature or current_temp
+        # Estimate low temp as 15 degrees below current
+        low_temp = current_temp - 15
+    
+    # Calculate heating needs (hours when temp below 65°F comfort zone)
+    comfort_temp = 65
+    if low_temp < comfort_temp:
+        # Estimate heating hours based on temp difference
+        temp_diff = comfort_temp - low_temp
+        heating_hours = min(12, temp_diff / 3)  # More hours needed for bigger temp gaps
+    else:
+        heating_hours = 0
+    
+    # Propane BTU content: ~91,500 BTU per gallon
+    BTU_PER_GALLON = 91500
+    
+    # Calculate daily propane usage
+    heating_btu = request.heater_btu * heating_hours * 0.5  # 50% duty cycle assumed
+    cooking_btu = 10000 * request.cooking_hours_per_day  # ~10k BTU for cooking
+    water_heater_btu = request.water_heater_btu * 1  # 1 hour water heating per day
+    
+    total_daily_btu = heating_btu + cooking_btu + water_heater_btu
+    daily_propane_gallons = total_daily_btu / BTU_PER_GALLON
+    
+    # Days until empty
+    days_until_empty = request.tank_size_gallons / daily_propane_gallons if daily_propane_gallons > 0 else 999
+    
+    # Generate recommendation
+    if days_until_empty > 14:
+        recommendation = "✅ Propane supply is good for extended boondocking."
+    elif days_until_empty > 7:
+        recommendation = "👍 Adequate propane for about a week. Plan refill soon."
+    elif days_until_empty > 3:
+        recommendation = "⚠️ Propane getting low. Find refill station within a few days."
+    else:
+        recommendation = "🔴 Critical! Refill propane immediately."
+    
+    return PropaneUsageResponse(
+        location=location_name,
+        current_temp=current_temp,
+        low_temp=low_temp,
+        heating_hours_needed=round(heating_hours, 1),
+        daily_propane_gallons=round(daily_propane_gallons, 2),
+        days_until_empty=round(days_until_empty, 1),
+        recommendation=recommendation
+    )
+
+@api_router.post("/boondocking/wind-shelter", response_model=WindShelterResponse)
+async def calculate_wind_shelter(request: WindShelterRequest):
+    """Calculate RV orientation recommendations for wind protection."""
+    
+    weather = await get_noaa_weather(request.latitude, request.longitude)
+    location_name = await reverse_geocode(request.latitude, request.longitude) or "Unknown Location"
+    
+    wind_speed = 0
+    wind_direction = "N"
+    wind_gust = None
+    
+    if weather:
+        # Parse wind speed
+        wind_str = weather.wind_speed or "0 mph"
+        try:
+            wind_speed = int(''.join(filter(str.isdigit, wind_str.split()[0])))
+        except:
+            wind_speed = 0
+        wind_direction = weather.wind_direction or "N"
+    
+    # Calculate recommended orientation (nose into wind for aerodynamics)
+    direction_map = {
+        "N": "South", "NE": "Southwest", "E": "West", "SE": "Northwest",
+        "S": "North", "SW": "Northeast", "W": "East", "NW": "Southeast",
+        "NNE": "South-Southwest", "ENE": "West-Southwest", "ESE": "West-Northwest",
+        "SSE": "North-Northwest", "SSW": "North-Northeast", "WSW": "East-Northeast",
+        "WNW": "East-Southeast", "NNW": "South-Southeast"
+    }
+    
+    recommended = direction_map.get(wind_direction, "South")
+    
+    # Calculate shelter score (100 = no wind issues)
+    if wind_speed < 10:
+        shelter_score = 100
+    elif wind_speed < 20:
+        shelter_score = 80
+    elif wind_speed < 30:
+        shelter_score = 50
+    else:
+        shelter_score = 20
+    
+    # Generate tips
+    tips = []
+    if wind_speed > 30:
+        tips.append("⚠️ High winds - consider relocating to a sheltered area")
+        tips.append("Lower all awnings and secure loose items")
+        tips.append("Park alongside buildings or terrain for windbreak")
+    elif wind_speed > 20:
+        tips.append("Retract awnings when not supervised")
+        tips.append("Point nose into wind to reduce sway")
+        tips.append("Use wheel chocks and stabilizers")
+    elif wind_speed > 10:
+        tips.append("Good conditions - awnings safe with monitoring")
+        tips.append(f"Orient RV facing {recommended} for best stability")
+    else:
+        tips.append("✅ Calm conditions - no wind concerns")
+        tips.append("Great day for outdoor activities")
+    
+    return WindShelterResponse(
+        location=location_name,
+        wind_speed_mph=wind_speed,
+        wind_direction=wind_direction,
+        wind_gust_mph=wind_gust,
+        recommended_orientation=f"Face {recommended} (nose into {wind_direction} wind)",
+        shelter_score=shelter_score,
+        tips=tips
+    )
+
+@api_router.get("/boondocking/connectivity", response_model=ConnectivityResponse)
+async def check_connectivity(latitude: float, longitude: float):
+    """Check cell connectivity estimates for major carriers."""
+    
+    location_name = await reverse_geocode(latitude, longitude) or "Unknown Location"
+    
+    # Get population density estimate based on reverse geocode
+    # Urban areas = better signal, rural = worse
+    is_urban = any(term in location_name.lower() for term in ["city", "town", "village", "metro"])
+    
+    # Base signal estimation (in real app, would use actual coverage APIs)
+    # This provides reasonable estimates based on carrier coverage patterns
+    
+    if is_urban:
+        base_signal = 4
+    else:
+        # Check if near major highways or populated areas
+        base_signal = 2
+    
+    carriers = [
+        {
+            "name": "Verizon",
+            "signal_bars": min(5, base_signal + 1),  # Verizon typically best rural coverage
+            "signal_strength": "Good" if base_signal >= 3 else "Fair" if base_signal >= 2 else "Weak",
+            "lte_available": base_signal >= 2,
+            "5g_available": is_urban
+        },
+        {
+            "name": "AT&T", 
+            "signal_bars": base_signal,
+            "signal_strength": "Good" if base_signal >= 3 else "Fair" if base_signal >= 2 else "Weak",
+            "lte_available": base_signal >= 2,
+            "5g_available": is_urban
+        },
+        {
+            "name": "T-Mobile",
+            "signal_bars": max(1, base_signal - 1),  # T-Mobile typically weaker rural
+            "signal_strength": "Good" if base_signal >= 4 else "Fair" if base_signal >= 2 else "Weak",
+            "lte_available": base_signal >= 3,
+            "5g_available": is_urban
+        },
+        {
+            "name": "Starlink",
+            "signal_bars": 4,  # Starlink works almost everywhere with clear sky
+            "signal_strength": "Excellent" if not is_urban else "Good",
+            "lte_available": False,
+            "satellite": True,
+            "note": "Requires clear view of sky"
+        }
+    ]
+    
+    # Overall rating
+    avg_bars = sum(c["signal_bars"] for c in carriers[:3]) / 3
+    if avg_bars >= 4:
+        overall = "Excellent"
+    elif avg_bars >= 3:
+        overall = "Good"
+    elif avg_bars >= 2:
+        overall = "Fair"
+    else:
+        overall = "Poor"
+    
+    # Recommendation
+    if overall == "Poor":
+        recommendation = "📡 Weak cellular coverage. Starlink or cell booster recommended."
+    elif overall == "Fair":
+        recommendation = "📱 Moderate coverage. Cell booster may improve speeds."
+    else:
+        recommendation = "✅ Good connectivity. Streaming and video calls should work."
+    
+    return ConnectivityResponse(
+        latitude=latitude,
+        longitude=longitude,
+        location_name=location_name,
+        carriers=carriers,
+        overall_rating=overall,
+        recommendation=recommendation
+    )
+
+@api_router.post("/boondocking/campsite-index", response_model=CampsiteIndexResponse)
+async def calculate_campsite_index(request: CampsiteIndexRequest):
+    """Calculate campsite suitability index based on multiple factors."""
+    
+    location_name = await reverse_geocode(request.latitude, request.longitude) or "Unknown Location"
+    weather = await get_noaa_weather(request.latitude, request.longitude)
+    
+    factors = {}
+    
+    # Wind factor
+    wind_speed = 0
+    if weather:
+        wind_str = weather.wind_speed or "0 mph"
+        try:
+            wind_speed = int(''.join(filter(str.isdigit, wind_str.split()[0])))
+        except:
+            wind_speed = 0
+    
+    if wind_speed < 10:
+        factors["wind"] = {"score": 100, "rating": "Excellent", "detail": f"{wind_speed} mph - Calm"}
+    elif wind_speed < 20:
+        factors["wind"] = {"score": 75, "rating": "Good", "detail": f"{wind_speed} mph - Light breeze"}
+    elif wind_speed < 30:
+        factors["wind"] = {"score": 50, "rating": "Fair", "detail": f"{wind_speed} mph - Moderate"}
+    else:
+        factors["wind"] = {"score": 25, "rating": "Poor", "detail": f"{wind_speed} mph - High winds"}
+    
+    # Weather/conditions factor
+    if weather:
+        conditions = (weather.conditions or "clear").lower()
+        if "clear" in conditions or "sunny" in conditions:
+            factors["weather"] = {"score": 100, "rating": "Excellent", "detail": weather.conditions}
+        elif "partly" in conditions:
+            factors["weather"] = {"score": 80, "rating": "Good", "detail": weather.conditions}
+        elif "cloudy" in conditions:
+            factors["weather"] = {"score": 60, "rating": "Fair", "detail": weather.conditions}
+        elif "rain" in conditions:
+            factors["weather"] = {"score": 30, "rating": "Poor", "detail": weather.conditions}
+        else:
+            factors["weather"] = {"score": 70, "rating": "Good", "detail": weather.conditions or "Unknown"}
+    else:
+        factors["weather"] = {"score": 70, "rating": "Unknown", "detail": "Weather data unavailable"}
+    
+    # Cell signal estimate
+    is_urban = any(term in location_name.lower() for term in ["city", "town", "village"])
+    if is_urban:
+        factors["cell_signal"] = {"score": 90, "rating": "Excellent", "detail": "Urban area - strong signal likely"}
+    else:
+        factors["cell_signal"] = {"score": 50, "rating": "Fair", "detail": "Rural area - signal may be limited"}
+    
+    # Road access estimate (based on if we could geocode the location)
+    if location_name and location_name != "Unknown Location":
+        factors["road_access"] = {"score": 80, "rating": "Good", "detail": "Accessible by road"}
+    else:
+        factors["road_access"] = {"score": 40, "rating": "Unknown", "detail": "Road access unclear"}
+    
+    # Terrain (simplified estimate)
+    factors["terrain"] = {"score": 70, "rating": "Good", "detail": "Terrain assessment requires on-site evaluation"}
+    
+    # Tree shade (simplified)
+    factors["shade"] = {"score": 60, "rating": "Fair", "detail": "Shade availability varies by specific site"}
+    
+    # Calculate overall score
+    overall_score = int(sum(f["score"] for f in factors.values()) / len(factors))
+    
+    if overall_score >= 80:
+        overall_rating = "Excellent"
+        recommendation = "✅ Great campsite conditions! This location looks very suitable."
+    elif overall_score >= 60:
+        overall_rating = "Good"
+        recommendation = "👍 Good conditions overall. Check specific factors for any concerns."
+    elif overall_score >= 40:
+        overall_rating = "Fair"
+        recommendation = "⚠️ Some concerns. Review wind and weather before setting up."
+    else:
+        overall_rating = "Poor"
+        recommendation = "🔴 Challenging conditions. Consider finding an alternative site."
+    
+    return CampsiteIndexResponse(
+        latitude=request.latitude,
+        longitude=request.longitude,
+        location_name=location_name,
+        overall_score=overall_score,
+        overall_rating=overall_rating,
+        factors=factors,
+        recommendation=recommendation
+    )
+
+# ==================== Trucker API Endpoints ====================
+
+@api_router.get("/trucker/truck-stops", response_model=PlacesSearchResponse)
+async def find_truck_stops(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find truck stops with fuel."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "truck stop diesel fuel flying j pilot loves travel center",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/trucker/weigh-stations")
+async def find_weigh_stations(latitude: float, longitude: float, radius_miles: int = 50):
+    """Find weigh stations along route."""
+    
+    # Search for weigh stations using Google Places
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "weigh station truck scale inspection station",
+        latitude, longitude, radius_meters
+    )
+    
+    # Convert to weigh station format
+    stations = []
+    for r in results[:10]:
+        stations.append({
+            "name": r.name,
+            "location": r.address,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "distance_miles": r.distance_miles,
+            "highway": "Check signage",
+            "direction": "Both",
+            "status": "Check DOT for current status",
+            "bypass_available": False  # Would need PrePass API for real data
+        })
+    
+    return {"results": stations, "total": len(stations)}
+
+@api_router.get("/trucker/parking", response_model=PlacesSearchResponse)
+async def find_truck_parking(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find truck parking locations."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "truck parking overnight parking semi truck rest area",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/trucker/low-clearance")
+async def find_low_clearances(latitude: float, longitude: float, vehicle_height_ft: float = 13.5, radius_miles: int = 20):
+    """Find low clearance warnings for trucks."""
+    
+    # In production, this would use a specialized trucking API or DOT data
+    # For now, search for bridges and underpasses that may have restrictions
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "underpass bridge overpass tunnel",
+        latitude, longitude, radius_meters
+    )
+    
+    clearances = []
+    for r in results[:10]:
+        # Estimate clearance (in real app, would use DOT database)
+        estimated_clearance = 14.0  # Default assumption
+        
+        warning_level = "safe"
+        if estimated_clearance < vehicle_height_ft:
+            warning_level = "danger"
+        elif estimated_clearance < vehicle_height_ft + 0.5:
+            warning_level = "caution"
+        
+        clearances.append({
+            "location": r.name,
+            "address": r.address,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "clearance_ft": estimated_clearance,
+            "vehicle_height_ft": vehicle_height_ft,
+            "distance_miles": r.distance_miles,
+            "warning_level": warning_level,
+            "note": "Verify clearance with local signage - data is estimated"
+        })
+    
+    return {
+        "results": clearances,
+        "total": len(clearances),
+        "warning": "Always verify clearances with posted signage. This data is estimated."
+    }
+
+@api_router.get("/trucker/repair-services", response_model=PlacesSearchResponse)
+async def find_truck_repair(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find truck repair services."""
+    radius_meters = int(radius_miles * 1609.34)
+    
+    results = await search_places_text(
+        "truck repair semi truck service diesel mechanic trailer repair",
+        latitude, longitude, radius_meters
+    )
+    
+    return PlacesSearchResponse(results=results[:15], total=len(results))
+
+@api_router.get("/trucker/weight-restrictions")
+async def find_weight_restrictions(latitude: float, longitude: float, radius_miles: int = 30):
+    """Find weight-restricted routes."""
+    
+    location_name = await reverse_geocode(latitude, longitude) or "Unknown"
+    
+    # In production, this would query DOT road restriction databases
+    # For now, provide general guidance
+    restrictions = [
+        {
+            "type": "general_info",
+            "title": "Federal Weight Limits",
+            "description": "Interstate highways: 80,000 lbs GVW max, 20,000 lbs single axle, 34,000 lbs tandem axle",
+            "source": "FHWA"
+        },
+        {
+            "type": "seasonal",
+            "title": "Spring Thaw Restrictions",
+            "description": "Many states impose seasonal weight limits during spring thaw (March-May). Check state DOT.",
+            "applies_to": "Northern states"
+        },
+        {
+            "type": "bridge",
+            "title": "Bridge Weight Limits",
+            "description": "Older bridges may have posted weight limits below federal maximums. Watch for signage.",
+            "recommendation": "Plan route using truck GPS with bridge data"
+        }
+    ]
+    
+    return {
+        "location": location_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "restrictions": restrictions,
+        "recommendation": "Use a commercial truck GPS or routing app for accurate weight restriction data. Check state DOT for current seasonal restrictions."
+    }
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
