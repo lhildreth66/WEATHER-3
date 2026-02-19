@@ -197,21 +197,24 @@ curl -H "X-Admin-Key: YOUR_ADMIN_KEY" \
 ## Quick Reference - API Endpoints
 
 ### Public Endpoints:
-- `GET /health` - Service health check
+- `GET /health` - Service health check (Render uses this)
 - `GET /api/health` - API health check
 - `POST /api/auth/signup` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/auth/refresh` - Refresh access token
-- `GET /api/subscriptions/plans` - Get subscription plans
+- `GET /api/subscription/plans` - Get subscription plans
 
-### Protected Endpoints (require Bearer token):
-- `GET /api/me` - Get current user profile
-- `POST /api/subscriptions/start-trial` - Start free trial
-- `POST /api/subscriptions/create-checkout-session` - Create Stripe checkout
+### Protected Endpoints (require `Authorization: Bearer TOKEN` header):
+- `GET /api/auth/me` - Get current user profile & subscription status
+- `POST /api/subscription/start-trial` - Start 7-day free trial
+- `POST /api/subscription/checkout` - Create Stripe checkout session
+- `GET /api/subscription/status` - Get subscription status
 
 ### Webhook Endpoints:
 - `POST /api/webhooks/stripe` - Stripe payment webhooks
 
-### Admin Endpoints (require X-Admin-Key header):
+### Admin Endpoints (require `X-Admin-Key` header):
 - `GET /api/admin/users` - List all users
+- `GET /api/admin/users/{user_id}` - Get user details
 - `POST /api/admin/users/{user_id}/grant-premium` - Grant premium access
+- `POST /api/admin/users/{user_id}/revoke-premium` - Revoke premium access
