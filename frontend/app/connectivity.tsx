@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,28 +7,33 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { API_BASE } from '../lib/apiConfig';
 
-type ConnectivityTab = 'cell' | 'starlink';
+interface CarrierInfo {
+  name: string;
+  signal_bars: number;
+  signal_strength: string;
+  lte_available: boolean;
+  '5g_available'?: boolean;
+  satellite?: boolean;
+  note?: string;
+}
+
+interface ConnectivityResult {
+  latitude: number;
+  longitude: number;
+  location_name: string;
+  carriers: CarrierInfo[];
+  overall_rating: string;
+  recommendation: string;
+}
 
 export default function ConnectivityScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('34.05');
-  const [longitude, setLongitude] = useState('-111.03');
-  
-  // Cell inputs
-  const [carrier, setCarrier] = useState<'verizon' | 'att' | 'tmobile'>('att');
-
-  // Starlink inputs
-  const [horizonSouth, setHorizonSouth] = useState('20');
-  const [canopyPct, setCanopyPct] = useState('40');
-
-  // UI state
-  const [tab, setTab] = useState<ConnectivityTab>('cell');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
-  const [cellResult, setCellResult] = useState<string | null>(null);
-  const [cellResultData, setCellResultData] = useState<any>(null);
-  const [starlinkResult, setStarlinkResult] = useState<string | null>(null);
-  const [starlinkResultData, setStarlinkResultData] = useState<any>(null);
+  const [result, setResult] = useState<ConnectivityResult | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     getCurrentLocation();
@@ -38,9 +43,7 @@ export default function ConnectivityScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const location = await Location.getCurrentPositionAsync({});
         setLatitude(location.coords.latitude.toFixed(4));
         setLongitude(location.coords.longitude.toFixed(4));
       }
@@ -53,6 +56,7 @@ export default function ConnectivityScreen() {
 
   const refreshLocation = async () => {
     setLocationLoading(true);
+    setResult(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -61,12 +65,9 @@ export default function ConnectivityScreen() {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const location = await Location.getCurrentPositionAsync({});
       setLatitude(location.coords.latitude.toFixed(4));
       setLongitude(location.coords.longitude.toFixed(4));
-      Alert.alert('Location Updated', `Refreshed to: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
     } catch (err) {
       Alert.alert('Error', 'Failed to refresh location');
     } finally {
@@ -74,320 +75,210 @@ export default function ConnectivityScreen() {
     }
   };
 
-  const useCurrentLocation = async () => {
-    await refreshLocation();
-  };
+  const checkConnectivity = async () => {
+    if (!latitude || !longitude) {
+      setError('Location required');
+      return;
+    }
 
-  const runCellPrediction = async () => {
     setLoading(true);
-    setCellResult(null);
-    setCellResultData(null);
+    setResult(null);
+    setError('');
     try {
-      const payload = {
-        carrier,
-        lat: parseFloat(latitude),
-        lon: parseFloat(longitude),
-      };
-
-      try {
-        const resp = await axios.post(`${API_BASE}/api/connectivity/cell-probability`, payload);
-        const d = resp.data;
-        setCellResultData(d);
-        setCellResult(`${d.bar_estimate} probability: ${(d.probability * 100).toFixed(0)}%. ${d.explanation}`);
-      } catch (err: any) {
-        console.error('Cell prediction error:', err);
-        // Show actual error details for debugging
-        const errorDetail = err?.response?.data?.detail || err?.message || 'Unknown error';
-        setCellResult(`Error: ${errorDetail}`);
-      }
+      const resp = await axios.get(`${API_BASE}/api/boondocking/connectivity`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+        },
+      });
+      setResult(resp.data);
+    } catch (err: any) {
+      console.error('Connectivity check error:', err);
+      setError(err?.response?.data?.detail || 'Failed to check connectivity');
     } finally {
       setLoading(false);
     }
   };
 
-  const runStarlinkPrediction = async () => {
-    setLoading(true);
-    setStarlinkResult(null);
-    setStarlinkResultData(null);
-    try {
-      const payload = {
-        horizonSouthDeg: parseInt(horizonSouth || '0', 10),
-        canopyPct: parseInt(canopyPct || '0', 10),
-      };
+  const getSignalBars = (bars: number) => {
+    const filled = Math.min(5, Math.max(0, bars));
+    return (
+      <View style={styles.signalBars}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.signalBar,
+              { height: 6 + i * 4 },
+              i <= filled ? styles.signalBarFilled : styles.signalBarEmpty,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
 
-      try {
-        const resp = await axios.post(`${API_BASE}/api/connectivity/starlink-risk`, payload);
-        const d = resp.data;
-        setStarlinkResultData(d);
-        const reasons = Array.isArray(d.reasons) ? d.reasons.join('; ') : '';
-        setStarlinkResult(`${d.risk_level} risk (score: ${d.obstruction_score}). ${d.explanation}${reasons ? `; ${reasons}` : ''}`);
-      } catch (err: any) {
-        console.error('Starlink prediction error:', err);
-        // Show actual error details for debugging
-        const errorDetail = err?.response?.data?.detail || err?.message || 'Unknown error';
-        setStarlinkResult(`Error: ${errorDetail}`);
-      }
-    } finally {
-      setLoading(false);
+  const getSignalColor = (strength: string) => {
+    switch (strength.toLowerCase()) {
+      case 'excellent': return '#10b981';
+      case 'good': return '#22c55e';
+      case 'fair': return '#eab308';
+      case 'weak': return '#f59e0b';
+      case 'poor': return '#ef4444';
+      default: return '#6b7280';
     }
   };
 
-  const getRiskStyle = (risk: string) => {
-    switch (risk?.toLowerCase()) {
-      case 'low': return { borderColor: '#4ade80', backgroundColor: '#14532d' };
-      case 'medium': return { borderColor: '#fbbf24', backgroundColor: '#713f12' };
-      case 'high': return { borderColor: '#f87171', backgroundColor: '#7f1d1d' };
-      default: return { borderColor: '#9ca3af', backgroundColor: '#1f2937' };
-    }
+  const getCarrierIcon = (name: string) => {
+    if (name === 'Starlink') return 'planet';
+    return 'cellular';
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Back Button */}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        
-        <ScrollView style={styles.content}>
-          <View style={styles.card}>
-            <Text style={styles.title}>Connectivity</Text>
-            <Text style={styles.subtitle}>Predict cellular and Starlink signal quality</Text>
-
-            {/* Location Display with Auto-detect */}
-            <View style={styles.locationBox}>
-              <View style={styles.locationBoxHeader}>
-                <Ionicons name="location" size={18} color="#06b6d4" />
-                <Text style={styles.locationBoxLabel}>Your Location</Text>
-                <TouchableOpacity 
-                  onPress={refreshLocation} 
-                  style={styles.refreshLocationBtn}
-                  disabled={locationLoading}
-                >
-                  {locationLoading ? (
-                    <ActivityIndicator size="small" color="#06b6d4" />
-                  ) : (
-                    <Ionicons name="refresh" size={18} color="#06b6d4" />
-                  )}
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.locationBoxCoords}>
-                {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-              </Text>
-            </View>
-
-            {/* Tab buttons */}
-            <View style={styles.tabRow}>
-            <TouchableOpacity
-              onPress={() => setTab('cell')}
-              style={[styles.tabBtn, tab === 'cell' && styles.tabBtnActive]}
-            >
-              <Text style={[styles.tabText, tab === 'cell' && styles.tabTextActive]}>Cellular</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setTab('starlink')}
-              style={[styles.tabBtn, tab === 'starlink' && styles.tabBtnActive]}
-            >
-              <Text style={[styles.tabText, tab === 'starlink' && styles.tabTextActive]}>Starlink</Text>
-            </TouchableOpacity>
-          </View>
-
-          {tab === 'cell' ? (
-            <View style={styles.tabContent}>
-              <Text style={styles.helpText}>
-                Select your carrier and use your GPS location to predict signal strength at your campsite.
-              </Text>
-              
-              <View style={styles.inputRow}>
-                <Text style={styles.label}>Carrier</Text>
-                <View style={styles.carrierRow}>
-                  {(['att', 'verizon', 'tmobile'] as const).map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setCarrier(c)}
-                      style={[styles.carrierBtn, carrier === c && styles.carrierBtnActive]}
-                    >
-                      <Text style={[styles.carrierText, carrier === c && styles.carrierTextActive]}>
-                        {c.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <TouchableOpacity onPress={runCellPrediction} style={styles.cta}>
-                {loading ? <ActivityIndicator color="#1a1a1a" /> : <Text style={styles.ctaText}>Predict Signal</Text>}
-              </TouchableOpacity>
-
-              {cellResult && (
-                <View style={styles.resultCard}>
-                  <Text style={styles.resultTitle}>📱 Signal Prediction</Text>
-                  {cellResultData && (
-                    <>
-                      <View style={styles.signalBox}>
-                        <Text style={styles.signalBars}>{cellResultData.bar_estimate}</Text>
-                        <Text style={styles.signalProb}>{(cellResultData.probability * 100).toFixed(0)}% probability</Text>
-                      </View>
-                      <Text style={styles.resultExplanation}>{cellResultData.explanation}</Text>
-                      <Text style={styles.carrierInfo}>Carrier: {cellResultData.carrier.toUpperCase()}</Text>
-                    </>
-                  )}
-                  {!cellResultData && <Text style={styles.result}>{cellResult}</Text>}
-                </View>
-              )}
-            </View>
+        <TouchableOpacity onPress={refreshLocation} disabled={locationLoading}>
+          {locationLoading ? (
+            <ActivityIndicator size="small" color="#60a5fa" />
           ) : (
-            <View style={styles.tabContent}>
-              <View style={styles.inputRow}>
-                <Text style={styles.label}>South Horizon Obstruction (°)</Text>
-                <TextInput
-                  value={horizonSouth}
-                  onChangeText={setHorizonSouth}
-                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
-                  style={styles.input}
-                  placeholder="e.g., 20"
-                  placeholderTextColor="#9ca3af"
-                />
+            <Ionicons name="locate" size={24} color="#60a5fa" />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.title}>📡 Connectivity Check</Text>
+          <Text style={styles.subtitle}>Check cell signal and internet options at your location</Text>
+
+          {latitude && longitude && (
+            <View style={styles.locationBadge}>
+              <Ionicons name="location" size={14} color="#60a5fa" />
+              <Text style={styles.locationText}>{latitude}, {longitude}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity onPress={checkConnectivity} style={styles.button} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#1a1a1a" />
+            ) : (
+              <>
+                <Ionicons name="wifi" size={20} color="#1a1a1a" />
+                <Text style={styles.buttonText}>Check Signal</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={20} color="#fca5a5" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {result && (
+            <View style={styles.resultContainer}>
+              <View style={styles.resultHeader}>
+                <Text style={styles.resultLocation}>{result.location_name}</Text>
+                <View style={[styles.overallBadge, { backgroundColor: getSignalColor(result.overall_rating) + '30' }]}>
+                  <Text style={[styles.overallText, { color: getSignalColor(result.overall_rating) }]}>
+                    {result.overall_rating}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.inputRow}>
-                <Text style={styles.label}>Canopy Coverage (%)</Text>
-                <TextInput
-                  value={canopyPct}
-                  onChangeText={setCanopyPct}
-                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
-                  style={styles.input}
-                  placeholder="e.g., 40"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-
-              <TouchableOpacity onPress={runStarlinkPrediction} style={styles.cta}>
-                {loading ? <ActivityIndicator color="#1a1a1a" /> : <Text style={styles.ctaText}>Predict Risk</Text>}
-              </TouchableOpacity>
-
-              {starlinkResult && (
-                <View style={styles.resultCard}>
-                  <Text style={styles.resultTitle}>🛰️ Starlink Assessment</Text>
-                  {starlinkResultData && (
-                    <>
-                      <View style={[styles.riskBox, getRiskStyle(starlinkResultData.risk_level)]}>
-                        <Text style={styles.riskLabel}>Risk Level</Text>
-                        <Text style={styles.riskValue}>{starlinkResultData.risk_level.toUpperCase()}</Text>
-                        <Text style={styles.riskScore}>Obstruction Score: {starlinkResultData.obstruction_score}</Text>
+              <View style={styles.carriersContainer}>
+                {result.carriers.map((carrier, index) => (
+                  <View key={index} style={styles.carrierCard}>
+                    <View style={styles.carrierHeader}>
+                      <Ionicons 
+                        name={getCarrierIcon(carrier.name) as any} 
+                        size={24} 
+                        color={getSignalColor(carrier.signal_strength)} 
+                      />
+                      <Text style={styles.carrierName}>{carrier.name}</Text>
+                      {getSignalBars(carrier.signal_bars)}
+                    </View>
+                    <View style={styles.carrierDetails}>
+                      <View style={[styles.strengthBadge, { backgroundColor: getSignalColor(carrier.signal_strength) + '30' }]}>
+                        <Text style={[styles.strengthText, { color: getSignalColor(carrier.signal_strength) }]}>
+                          {carrier.signal_strength}
+                        </Text>
                       </View>
-                      <Text style={styles.resultExplanation}>{starlinkResultData.explanation}</Text>
-                      {starlinkResultData.reasons && starlinkResultData.reasons.length > 0 && (
-                        <View style={styles.reasonsBox}>
-                          <Text style={styles.reasonsTitle}>Factors:</Text>
-                          {starlinkResultData.reasons.map((reason: string, idx: number) => (
-                            <Text key={idx} style={styles.reasonText}>• {reason}</Text>
-                          ))}
+                      {carrier.lte_available && (
+                        <View style={styles.techBadge}>
+                          <Text style={styles.techText}>LTE</Text>
                         </View>
                       )}
-                    </>
-                  )}
-                  {!starlinkResultData && <Text style={styles.result}>{starlinkResult}</Text>}
-                </View>
-              )}
+                      {carrier['5g_available'] && (
+                        <View style={[styles.techBadge, styles.techBadge5g]}>
+                          <Text style={styles.techText}>5G</Text>
+                        </View>
+                      )}
+                      {carrier.satellite && (
+                        <View style={[styles.techBadge, styles.techBadgeSat]}>
+                          <Text style={styles.techText}>SAT</Text>
+                        </View>
+                      )}
+                    </View>
+                    {carrier.note && (
+                      <Text style={styles.carrierNote}>{carrier.note}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.recommendationBox}>
+                <Text style={styles.recommendationText}>{result.recommendation}</Text>
+              </View>
             </View>
           )}
         </View>
       </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
-  safeArea: { flex: 1, padding: 16 },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   content: { flex: 1 },
-  card: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, gap: 12, marginBottom: 16 },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  subtitle: { color: '#d4d4d8' },
-  locationInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111827', padding: 10, borderRadius: 8 },
-  locationText: { color: '#d4d4d8', fontSize: 12, flex: 1 },
-  refreshBtn: { padding: 4 },
-  locationButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1f2937', paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#06b6d4' },
-  locationButtonText: { color: '#06b6d4', fontWeight: '600', fontSize: 14 },
-  tabRow: { flexDirection: 'row', gap: 8 },
-  tabBtn: { flex: 1, backgroundColor: '#111827', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  tabBtnActive: { backgroundColor: '#eab308' },
-  tabText: { color: '#9ca3af', fontWeight: '700' },
-  tabTextActive: { color: '#1a1a1a' },
-  tabContent: { gap: 12 },
-  helpText: { color: '#9ca3af', fontSize: 13, lineHeight: 18, fontStyle: 'italic' },
-  inputRow: { gap: 6 },
-  label: { color: '#e4e4e7', fontWeight: '600' },
-  input: { backgroundColor: '#111827', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  carrierRow: { flexDirection: 'row', gap: 8 },
-  carrierBtn: { backgroundColor: '#111827', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
-  carrierBtnActive: { backgroundColor: '#eab308' },
-  carrierText: { color: '#9ca3af', fontWeight: '700' },
-  carrierTextActive: { color: '#1a1a1a' },
-  cta: { backgroundColor: '#eab308', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  ctaText: { color: '#1a1a1a', fontWeight: '800' },
-  result: { backgroundColor: '#111827', borderRadius: 8, padding: 12, color: '#e5e7eb' },
-  resultCard: { backgroundColor: '#111827', borderRadius: 8, padding: 16, gap: 12, marginTop: 8 },
-  resultTitle: { color: '#06b6d4', fontSize: 16, fontWeight: '700' },
-  signalBox: { backgroundColor: '#1f2937', borderRadius: 8, padding: 16, alignItems: 'center', borderWidth: 2, borderColor: '#06b6d4' },
-  signalBars: { color: '#fff', fontSize: 28, fontWeight: '800' },
-  signalProb: { color: '#9ca3af', fontSize: 14, marginTop: 4 },
-  resultExplanation: { color: '#d4d4d8', fontSize: 14, lineHeight: 20 },
-  carrierInfo: { color: '#9ca3af', fontSize: 12, fontStyle: 'italic' },
-  riskBox: { backgroundColor: '#1f2937', borderRadius: 8, padding: 16, alignItems: 'center', borderWidth: 2 },
-  riskLabel: { color: '#9ca3af', fontSize: 12, marginBottom: 4 },
-  riskValue: { color: '#fff', fontSize: 24, fontWeight: '800' },
-  riskScore: { color: '#d4d4d8', fontSize: 13, marginTop: 4 },
-  reasonsBox: { backgroundColor: '#1f2937', borderRadius: 8, padding: 12 },
-  reasonsTitle: { color: '#fbbf24', fontSize: 13, fontWeight: '700', marginBottom: 6 },
-  reasonText: { color: '#d4d4d8', fontSize: 12, marginBottom: 2 },
-  // Location box styles
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#06b6d420',
-  },
-  locationBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationBoxLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#06b6d415',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationBoxCoords: {
-    color: '#06b6d4',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
+  card: { backgroundColor: '#18181b', borderRadius: 16, padding: 20, margin: 16, borderWidth: 1, borderColor: '#27272a' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  subtitle: { color: '#a1a1aa', fontSize: 14, marginTop: 4, marginBottom: 12 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#27272a', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 16 },
+  locationText: { color: '#d4d4d8', fontSize: 12 },
+  button: { backgroundColor: '#3b82f6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 10 },
+  buttonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#450a0a', borderRadius: 8, padding: 12, marginTop: 12 },
+  errorText: { color: '#fca5a5', fontSize: 14, flex: 1 },
+  resultContainer: { marginTop: 20, gap: 16 },
+  resultHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  resultLocation: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1 },
+  overallBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  overallText: { fontSize: 14, fontWeight: '700' },
+  carriersContainer: { gap: 12 },
+  carrierCard: { backgroundColor: '#27272a', borderRadius: 12, padding: 14 },
+  carrierHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  carrierName: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  signalBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  signalBar: { width: 6, borderRadius: 2 },
+  signalBarFilled: { backgroundColor: '#10b981' },
+  signalBarEmpty: { backgroundColor: '#3f3f46' },
+  carrierDetails: { flexDirection: 'row', gap: 8 },
+  strengthBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  strengthText: { fontSize: 12, fontWeight: '600' },
+  techBadge: { backgroundColor: '#1e40af', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  techBadge5g: { backgroundColor: '#7c3aed' },
+  techBadgeSat: { backgroundColor: '#0891b2' },
+  techText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  carrierNote: { color: '#9ca3af', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
+  recommendationBox: { backgroundColor: '#1e3a5f', borderRadius: 10, padding: 14 },
+  recommendationText: { color: '#93c5fd', fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });
