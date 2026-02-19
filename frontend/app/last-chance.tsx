@@ -75,12 +75,24 @@ export default function LastChanceScreen() {
     setSupplies([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/last-chance/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
+      const resp = await axios.get(`${API_BASE}/api/boondocking/groceries`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
       });
-      setSupplies(resp.data.supplies || []);
+      // Map API response to expected format
+      const mappedSupplies = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        address: place.address,
+        type: 'Grocery Store',
+      }));
+      setSupplies(mappedSupplies);
     } catch (err: any) {
       console.error('Last chance search error:', err);
       setError(err?.response?.data?.detail || err?.message || 'Failed to find supply points');
