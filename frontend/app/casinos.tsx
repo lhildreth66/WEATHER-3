@@ -19,9 +19,11 @@ interface PlaceResult {
   place_id: string;
 }
 
-// Default location (Las Vegas for casinos)
-const DEFAULT_LAT = 36.1699;
-const DEFAULT_LON = -115.1398;
+interface GeocodeSuggestion {
+  place_name: string;
+  short_name: string;
+  coordinates: [number, number];
+}
 
 export default function CasinosScreen() {
   const router = useRouter();
@@ -29,37 +31,65 @@ export default function CasinosScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [latitude, setLatitude] = useState(DEFAULT_LAT.toString());
-  const [longitude, setLongitude] = useState(DEFAULT_LON.toString());
-  const [locationName, setLocationName] = useState('Las Vegas, NV (default)');
-  const [hasSearched, setHasSearched] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
 
   useEffect(() => {
-    // Try to get current location, but search immediately with default
     getCurrentLocation();
-    searchPlaces(DEFAULT_LAT, DEFAULT_LON);
   }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setLatitude(loc.coords.latitude.toFixed(4));
-        setLongitude(loc.coords.longitude.toFixed(4));
-        setLocationName('Current Location');
-        // Re-search with actual location
+        const locationData = { lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' };
+        setCurrentLocation(locationData);
         searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else {
+        setError('Enable location or search for a city above');
       }
     } catch (err) {
-      console.log('Location not available, using default');
+      setError('Enable location or search for a city above');
+    } finally {
+      setGettingLocation(false);
     }
+  };
+
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, {
+          params: { query: text, limit: 5 }
+        });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
+    searchPlaces(lat, lon);
   };
 
   const searchPlaces = async (lat: number, lon: number) => {
     setLoading(true);
     setError('');
-    setHasSearched(true);
     try {
       const response = await axios.get(`${API_BASE}/api/boondocking/casinos`, {
         params: { latitude: lat, longitude: lon, radius_miles: 100 }
@@ -77,20 +107,13 @@ export default function CasinosScreen() {
     }
   };
 
-  const handleSearch = () => {
-    const lat = parseFloat(latitude);
-    const lon = parseFloat(longitude);
-    if (isNaN(lat) || isNaN(lon)) {
-      Alert.alert('Invalid Location', 'Please enter valid coordinates');
-      return;
-    }
-    setLocationName('Custom Location');
-    searchPlaces(lat, lon);
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
-    searchPlaces(parseFloat(latitude), parseFloat(longitude));
+    if (currentLocation) {
+      searchPlaces(currentLocation.lat, currentLocation.lon);
+    } else {
+      getCurrentLocation();
+    }
   };
 
   const openInMaps = (place: PlaceResult) => {
@@ -105,47 +128,65 @@ export default function CasinosScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={getCurrentLocation} style={styles.refreshButton}>
-          <Ionicons name="locate" size={24} color="#eab308" />
+        <TouchableOpacity onPress={getCurrentLocation} style={styles.refreshButton} disabled={gettingLocation}>
+          {gettingLocation ? (
+            <ActivityIndicator size="small" color="#eab308" />
+          ) : (
+            <Ionicons name="locate" size={24} color="#eab308" />
+          )}
         </TouchableOpacity>
       </View>
 
       <ScrollView 
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#eab308" />}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.titleSection}>
           <Text style={styles.title}>🎰 Casinos Near Me</Text>
           <Text style={styles.subtitle}>Many casinos allow overnight RV parking - always call ahead to confirm</Text>
         </View>
 
-        {/* Location Input */}
-        <View style={styles.locationSection}>
-          <View style={styles.locationBadge}>
-            <Ionicons name="location" size={14} color="#eab308" />
-            <Text style={styles.locationText}>{locationName}</Text>
-          </View>
-          <View style={styles.coordsRow}>
+        {/* Location Search */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
             <TextInput
-              style={styles.coordInput}
-              value={latitude}
-              onChangeText={setLatitude}
-              placeholder="Latitude"
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={handleSearchQueryChange}
+              placeholder="Search city or address..."
               placeholderTextColor="#6b7280"
-              keyboardType="numeric"
+              onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
             />
-            <TextInput
-              style={styles.coordInput}
-              value={longitude}
-              onChangeText={setLongitude}
-              placeholder="Longitude"
-              placeholderTextColor="#6b7280"
-              keyboardType="numeric"
-            />
-            <TouchableOpacity onPress={handleSearch} style={styles.searchBtn}>
-              <Ionicons name="search" size={20} color="#1a1a1a" />
-            </TouchableOpacity>
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}>
+                <Ionicons name="close-circle" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            )}
           </View>
+          
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => selectLocation(suggestion)}
+                >
+                  <Ionicons name="location" size={16} color="#eab308" />
+                  <Text style={styles.suggestionText}>{suggestion.place_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {currentLocation && (
+            <View style={styles.locationBadge}>
+              <Ionicons name="location" size={14} color="#10b981" />
+              <Text style={styles.locationText}>Searching near: {currentLocation.name}</Text>
+            </View>
+          )}
         </View>
 
         {loading ? (
@@ -155,15 +196,14 @@ export default function CasinosScreen() {
           </View>
         ) : error && results.length === 0 ? (
           <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={48} color="#ef4444" />
+            <Ionicons name="alert-circle" size={48} color="#f59e0b" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={handleSearch} style={styles.retryButton}>
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.resultsContainer}>
-            <Text style={styles.resultsCount}>{results.length} casinos found</Text>
+            {results.length > 0 && (
+              <Text style={styles.resultsCount}>{results.length} casinos found</Text>
+            )}
             {results.map((place, index) => (
               <TouchableOpacity 
                 key={place.place_id || index}
@@ -227,18 +267,19 @@ const styles = StyleSheet.create({
   titleSection: { padding: 16, paddingBottom: 8 },
   title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
   subtitle: { color: '#a1a1aa', fontSize: 14, lineHeight: 20 },
-  locationSection: { paddingHorizontal: 16, marginBottom: 16 },
-  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  locationText: { color: '#eab308', fontSize: 13, fontWeight: '500' },
-  coordsRow: { flexDirection: 'row', gap: 8 },
-  coordInput: { flex: 1, backgroundColor: '#27272a', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#3f3f46' },
-  searchBtn: { backgroundColor: '#eab308', width: 44, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  searchSection: { paddingHorizontal: 16, marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46', overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
   loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   loadingText: { color: '#a1a1aa', fontSize: 14 },
-  errorContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  errorText: { color: '#ef4444', fontSize: 16, textAlign: 'center' },
-  retryButton: { backgroundColor: '#27272a', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginTop: 8 },
-  retryText: { color: '#fff', fontWeight: '600' },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12, paddingHorizontal: 20 },
+  errorText: { color: '#fbbf24', fontSize: 15, textAlign: 'center' },
   resultsContainer: { paddingHorizontal: 16, gap: 12 },
   resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
   resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
