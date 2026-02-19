@@ -2719,6 +2719,91 @@ async def find_weight_restrictions(latitude: float, longitude: float, radius_mil
     }
 
 
+# ==================== Water Budget API ====================
+
+class WaterBudgetRequest(BaseModel):
+    fresh_gal: float = 40
+    gray_gal: float = 30
+    black_gal: float = 20
+    people: int = 2
+    showers_per_week: float = 7
+    hot_days: bool = False  # Increased water usage in hot weather
+
+class WaterBudgetResponse(BaseModel):
+    days_remaining: float
+    limiting_factor: str  # "fresh", "gray", or "black"
+    daily_fresh_gal: float
+    daily_gray_gal: float
+    daily_black_gal: float
+    fresh_days: float
+    gray_days: float
+    black_days: float
+    advisory: Optional[str] = None
+
+@api_router.post("/water-budget", response_model=WaterBudgetResponse)
+async def calculate_water_budget(request: WaterBudgetRequest):
+    """Calculate how long water tanks will last based on usage patterns."""
+    
+    people = max(1, request.people)
+    
+    # Base daily usage per person (gallons)
+    base_drinking = 0.5  # Drinking water
+    base_cooking = 1.0   # Cooking/dishes
+    base_misc = 0.5      # Hand washing, misc
+    
+    # Shower usage: 2 gallons per minute, average 5-minute shower
+    shower_gallons = 10
+    showers_per_day = request.showers_per_week / 7
+    daily_shower = showers_per_day * shower_gallons * people
+    
+    # Toilet usage: 0.5 gallons per flush (composting/low-flow), ~6 flushes per person
+    daily_toilet = 0.5 * 6 * people
+    
+    # Hot weather increases water consumption by 30%
+    hot_multiplier = 1.3 if request.hot_days else 1.0
+    
+    # Calculate daily usage
+    daily_fresh = ((base_drinking + base_cooking + base_misc) * people + daily_shower) * hot_multiplier
+    daily_gray = daily_shower + (base_cooking * people * 0.8)  # 80% of cooking water goes to gray
+    daily_black = daily_toilet
+    
+    # Calculate days for each tank
+    fresh_days = request.fresh_gal / daily_fresh if daily_fresh > 0 else 999
+    gray_days = request.gray_gal / daily_gray if daily_gray > 0 else 999
+    black_days = request.black_gal / daily_black if daily_black > 0 else 999
+    
+    # Find limiting factor
+    min_days = min(fresh_days, gray_days, black_days)
+    
+    if min_days == fresh_days:
+        limiting_factor = "Fresh water tank"
+    elif min_days == gray_days:
+        limiting_factor = "Gray water tank"
+    else:
+        limiting_factor = "Black water tank"
+    
+    # Generate advisory
+    advisory = None
+    if min_days < 2:
+        advisory = "WARNING: You should find water/dump services soon!"
+    elif min_days < 4:
+        advisory = "Consider conserving water or planning for a dump station visit."
+    elif min_days >= 7:
+        advisory = "Good capacity for extended boondocking!"
+    
+    return WaterBudgetResponse(
+        days_remaining=round(min_days, 1),
+        limiting_factor=limiting_factor,
+        daily_fresh_gal=round(daily_fresh, 1),
+        daily_gray_gal=round(daily_gray, 1),
+        daily_black_gal=round(daily_black, 1),
+        fresh_days=round(fresh_days, 1),
+        gray_days=round(gray_days, 1),
+        black_days=round(black_days, 1),
+        advisory=advisory
+    )
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
