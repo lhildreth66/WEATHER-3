@@ -95,13 +95,25 @@ export default function FreeCampingScreen() {
     setSpots([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/free-camping/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
+      const resp = await axios.get(`${API_BASE}/api/boondocking/free-camping`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
       });
-      setSpots(resp.data.spots || []);
-      if (resp.data.spots && resp.data.spots.length === 0) {
+      // Map API response to expected format
+      const mappedSpots = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        address: place.address,
+        type: 'Dispersed Camping',
+      }));
+      setSpots(mappedSpots);
+      if (mappedSpots.length === 0) {
         setError('No free camping spots found in this area. Try increasing the search radius or searching a different location.');
       }
     } catch (err: any) {

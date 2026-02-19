@@ -94,13 +94,24 @@ export default function DumpStationScreen() {
     setStations([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/dump-stations/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
+      const resp = await axios.get(`${API_BASE}/api/boondocking/dump-stations`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
       });
-      setStations(resp.data.stations || []);
-      if (resp.data.stations && resp.data.stations.length === 0) {
+      // Map API response to expected format
+      const mappedStations = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        address: place.address,
+      }));
+      setStations(mappedStations);
+      if (mappedStations.length === 0) {
         setError('No dump stations found in this area. Try increasing the search radius.');
       }
     } catch (err: any) {
