@@ -905,6 +905,26 @@ export default function HomeScreen() {
                   </>
                 )}
               </TouchableOpacity>
+
+              {/* Quick Access Buttons */}
+              <View style={styles.quickAccessRow}>
+                <TouchableOpacity
+                  style={styles.quickAccessBtn}
+                  onPress={() => router.push('/boondockers')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="bonfire" size={24} color="#10b981" />
+                  <Text style={styles.quickAccessText}>Boondockers</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.quickAccessBtn}
+                  onPress={() => router.push('/tractor-trailer')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="bus" size={24} color="#f59e0b" />
+                  <Text style={styles.quickAccessText}>Truck Drivers</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Tabs for Recent/Favorites */}
