@@ -1471,6 +1471,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontWeight: '500',
   },
+  clearButton: {
+    padding: 6,
+    marginRight: 4,
+  },
   swapButton: {
     padding: 8,
   },
