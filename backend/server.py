@@ -254,6 +254,8 @@ class RouteWeatherResponse(BaseModel):
     optimal_departure: Optional[DepartureWindow] = None
     trucker_warnings: List[str] = []
     vehicle_type: str = "car"
+    vehicle_height_ft: Optional[float] = None
+    bridge_clearance_alerts: List[BridgeClearanceAlert] = []
     # Road conditions and navigation
     turn_by_turn: List[TurnByTurnStep] = []
     road_condition_summary: Optional[str] = None
