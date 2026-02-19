@@ -28,7 +28,7 @@ interface LocationData {
 interface AutocompleteSuggestion {
   place_name: string;
   short_name: string;
-  center: [number, number];
+  coordinates: [number, number];
 }
 
 export default function TruckStopsScreen() {
