@@ -968,6 +968,15 @@ export default function HomeScreen() {
                   <Ionicons name="bus" size={24} color="#f59e0b" />
                   <Text style={styles.quickAccessText}>Truck Drivers</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.quickAccessBtn}
+                  onPress={() => router.push('/how-to-use')}
+                  activeOpacity={0.8}
+                  data-testid="how-to-use-btn"
+                >
+                  <Ionicons name="help-circle" size={24} color="#8b5cf6" />
+                  <Text style={styles.quickAccessText}>How To Use</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
