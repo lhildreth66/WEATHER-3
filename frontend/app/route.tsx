@@ -386,7 +386,6 @@ export default function RouteScreen() {
   
   // Speaking state
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     if (params.routeData) {
