@@ -45,12 +45,14 @@ export default function RootLayout() {
         <Stack.Screen name="boondockers" />
         <Stack.Screen name="camp-prep-checklist" />
         <Stack.Screen name="free-camping" />
+        <Stack.Screen name="casinos" />
+        <Stack.Screen name="walmart-parking" />
+        <Stack.Screen name="cracker-barrel" />
         <Stack.Screen name="dump-station" />
         <Stack.Screen name="last-chance" />
         <Stack.Screen name="rv-dealership" />
         <Stack.Screen name="solar-forecast" />
         <Stack.Screen name="propane-usage" />
-        <Stack.Screen name="water-budget" />
         <Stack.Screen name="wind-shelter" />
         <Stack.Screen name="connectivity" />
         <Stack.Screen name="campsite-index" />
