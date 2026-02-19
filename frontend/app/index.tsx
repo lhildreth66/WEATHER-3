@@ -571,10 +571,18 @@ export default function HomeScreen() {
                   <Text style={styles.radarHomeBtnText}>Radar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={styles.favoriteButton}
-                  onPress={addToFavorites}
+                  style={styles.accountButton}
+                  onPress={() => router.push('/account')}
+                  data-testid="account-btn"
                 >
-                  <Ionicons name="heart-outline" size={24} color="#eab308" />
+                  {isAuthenticated ? (
+                    <View style={styles.accountLoggedIn}>
+                      <Ionicons name="person" size={18} color="#eab308" />
+                      {isPremium && <View style={styles.premiumDot} />}
+                    </View>
+                  ) : (
+                    <Ionicons name="person-outline" size={22} color="#a1a1aa" />
+                  )}
                 </TouchableOpacity>
               </View>
 
