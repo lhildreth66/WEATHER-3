@@ -204,10 +204,10 @@ ADMIN_API_KEY=<key>
 ### P0 (Critical)
 - ~~**Deploy backend to Render**~~ - DONE, backend live at api.routecastweather.com
 - ~~**Bridge Height Alerts (OSM/Overpass)**~~ - DONE, integrated into route endpoint
+- ~~**Push Notification Worker**~~ - DONE, token registration + route monitors
 - **Deploy frontend to Render** - In progress (user deploying)
 
 ### P1 (High Priority)
-- Integrate Push Notification Worker
 - Fix Truck Weight Restricted Roads (real data source)
 - Fix white bar autofill bug on address fields
 - Complete Apple IAP implementation
