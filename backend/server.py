@@ -1537,6 +1537,8 @@ async def get_route_weather(request: RouteRequest):
         optimal_departure=optimal_departure,
         trucker_warnings=trucker_warnings,
         vehicle_type=vehicle_type,
+        vehicle_height_ft=request.vehicle_height_ft,
+        bridge_clearance_alerts=bridge_clearance_alerts,
         # Road conditions and navigation
         turn_by_turn=turn_by_turn,
         road_condition_summary=road_condition_summary,
