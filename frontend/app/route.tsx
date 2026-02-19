@@ -91,6 +91,16 @@ interface HazardAlert {
   countdown_text: string;
 }
 
+interface BridgeClearanceAlert {
+  bridge_name: string;
+  clearance_ft: number;
+  vehicle_height_ft: number;
+  distance_miles: number;
+  latitude: number;
+  longitude: number;
+  warning: string;
+}
+
 interface RouteData {
   id: string;
   origin: string;
@@ -100,6 +110,7 @@ interface RouteData {
   waypoints: WaypointWeather[];
   safety_score: SafetyScore | null;
   hazard_alerts: HazardAlert[];
+  bridge_clearance_alerts?: BridgeClearanceAlert[];
   turn_by_turn: TurnByTurnStep[];
   road_condition_summary: string | null;
   worst_road_condition: string | null;
