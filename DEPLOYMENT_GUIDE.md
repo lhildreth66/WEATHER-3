@@ -211,7 +211,7 @@ curl -H "X-Admin-Key: YOUR_ADMIN_KEY" \
 - `GET /api/subscription/status` - Get subscription status
 
 ### Webhook Endpoints:
-- `POST /api/webhooks/stripe` - Stripe payment webhooks
+- `POST /api/webhook/stripe` - Stripe payment webhooks
 
 ### Admin Endpoints (require `X-Admin-Key` header):
 - `GET /api/admin/users` - List all users
