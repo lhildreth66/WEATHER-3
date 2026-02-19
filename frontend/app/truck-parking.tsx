@@ -81,13 +81,25 @@ export default function TruckParkingScreen() {
     setSpots([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/truck-parking/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
+      const resp = await axios.get(`${API_BASE}/api/trucker/parking`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
       });
-      setSpots(resp.data.spots || []);
-      if (resp.data.spots && resp.data.spots.length === 0) {
+      // Map API response to expected format
+      const mappedSpots = (resp.data.results || []).map((place: any) => ({
+        name: place.name,
+        type: 'Truck Parking',
+        distance_miles: place.distance_miles,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        amenities: [],
+        restrictions: [],
+      }));
+      setSpots(mappedSpots);
+      if (mappedSpots.length === 0) {
         setError('No truck parking found in this area. Try increasing the search radius.');
       }
     } catch (err: any) {

@@ -78,15 +78,16 @@ export default function WeighStationsScreen() {
     setStations([]);
     setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/weigh-stations/search`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radius_miles: parseInt(searchRadius, 10),
-      }, {
+      const resp = await axios.get(`${API_BASE}/api/trucker/weigh-stations`, {
+        params: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          radius_miles: parseInt(searchRadius, 10),
+        },
         timeout: 65000,
       });
-      setStations(resp.data.stations || []);
-      if (resp.data.stations && resp.data.stations.length === 0) {
+      setStations(resp.data.results || []);
+      if (resp.data.results && resp.data.results.length === 0) {
         setError('No weigh stations found in this area. Try increasing the search radius.');
       }
     } catch (err: any) {
