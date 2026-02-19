@@ -1475,8 +1475,38 @@ async def get_route_weather(request: RouteRequest):
     
     # NEW: Generate trucker-specific warnings if enabled
     trucker_warnings = []
+    bridge_clearance_alerts = []
     if request.trucker_mode:
         trucker_warnings = generate_trucker_warnings(list(waypoints_weather), request.vehicle_height_ft)
+        
+        # NEW: Get bridge clearance alerts from OSM/Overpass
+        if request.vehicle_height_ft and request.vehicle_height_ft > 0:
+            try:
+                bridge_alerts_raw = await get_bridge_clearances_for_route(
+                    route_geometry,
+                    vehicle_height_ft=request.vehicle_height_ft
+                )
+                # Convert to BridgeClearanceAlert objects
+                bridge_clearance_alerts = [
+                    BridgeClearanceAlert(
+                        location=alert["location"],
+                        latitude=alert["latitude"],
+                        longitude=alert["longitude"],
+                        clearance_ft=alert["clearance_ft"],
+                        vehicle_height_ft=alert["vehicle_height_ft"],
+                        margin_ft=alert["margin_ft"],
+                        warning_level=alert["warning_level"],
+                        distance_miles=alert["distance_miles"],
+                        highway=alert.get("highway"),
+                        direction=alert.get("direction"),
+                        message=alert["message"]
+                    )
+                    for alert in bridge_alerts_raw
+                    if alert["warning_level"] in ["danger", "caution"]  # Only show concerning ones
+                ]
+            except Exception as e:
+                logger.error(f"Error fetching bridge clearances: {e}")
+                bridge_clearance_alerts = []
     
     # NEW: Analyze road conditions
     road_condition_summary, worst_road_condition, reroute_recommended, reroute_reason = analyze_route_conditions(list(waypoints_weather))
