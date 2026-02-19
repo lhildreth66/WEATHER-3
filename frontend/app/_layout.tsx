@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { AuthProvider } from '../contexts/AuthContext';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -30,7 +31,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -41,6 +42,14 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="route" />
+        {/* Auth Screens */}
+        <Stack.Screen name="login" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="verify-email" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
+        <Stack.Screen name="subscription" />
+        <Stack.Screen name="account" />
         {/* Boondockers Screens */}
         <Stack.Screen name="boondockers" />
         <Stack.Screen name="camp-prep-checklist" />
@@ -70,6 +79,6 @@ export default function RootLayout() {
         <Stack.Screen name="weather-alerts" />
         <Stack.Screen name="user-guide" />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }
