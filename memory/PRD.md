@@ -171,7 +171,18 @@ ADMIN_API_KEY=<key>
 
 ## Completed Features
 
-### Authentication & Subscription (Dec 2025)
+### Auth/Subscription Frontend UI (Feb 2025)
+- Login page with email/password
+- Signup page with 7-day trial promotion
+- Email verification page with resend/skip options
+- Forgot password page with success state
+- Reset password page
+- Subscription page showing plans ($9.99/mo, $59.99/yr)
+- Account page with subscription status + manage link
+- Account button in main app header
+- AuthContext for state management
+
+### Authentication & Subscription Backend (Dec 2025)
 - Full auth system with JWT tokens
 - Email verification flow
 - Password reset flow
@@ -191,19 +202,19 @@ ADMIN_API_KEY=<key>
 ## Pending Tasks
 
 ### P0 (Critical)
-- Integrate real bridge clearance data
+- **Deploy backend to Render** - In progress, backend-only render.yaml ready
+- Integrate real bridge clearance data (OpenStreetMap/Overpass fallback)
+
+### P1 (High Priority)
+- Integrate Push Notification Worker
+- Fix Truck Weight Restricted Roads (real data source)
+- Fix white bar autofill bug on address fields
 - Complete Apple IAP implementation
 - Complete Google Play Billing implementation
 
-### P1 (High Priority)
-- Deploy to Render.com production
-- Configure custom domains
-- SendGrid domain authentication
-
 ### P2 (Medium Priority)
-- Frontend auth UI (login/signup screens)
-- Subscription upgrade UI
 - Admin dashboard UI
+- Talking button scope adjustment (road conditions only)
 
 ### P3 (Low Priority)
 - Offline mode support
