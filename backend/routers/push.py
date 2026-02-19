@@ -67,7 +67,7 @@ async def register_push_token(
     """
     from server import db
     
-    user_id = user.get("user_id") if user else f"anon_{request.token[-12:]}"
+    user_id = user.get("sub") if user else f"anon_{request.token[-12:]}"
     
     push_service = PushNotificationService(db)
     success = await push_service.register_push_token(
