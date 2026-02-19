@@ -1,572 +1,321 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Alert, Linking, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Linking } from 'react-native';
 import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../lib/apiConfig';
 
-interface ParkingSpot {
+interface PlaceResult {
+  place_id: string;
   name: string;
-  type: string;
-  distance_miles: number;
+  address: string;
   latitude: number;
   longitude: number;
-  capacity?: number;
-  amenities: string[];
-  restrictions: string[];
-  hours?: string;
-  fee?: string;
+  distance_miles: number;
+  rating?: number;
+  is_open?: boolean;
+}
+
+interface LocationData {
+  lat: number;
+  lon: number;
+  name: string;
+}
+
+interface AutocompleteSuggestion {
+  place_name: string;
+  short_name: string;
+  center: [number, number];
 }
 
 export default function TruckParkingScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [searchRadius, setSearchRadius] = useState('25');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [spots, setSpots] = useState<ParkingSpot[]>([]);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [results, setResults] = useState<PlaceResult[]>([]);
   const [error, setError] = useState<string>('');
-  const [expandedSpots, setExpandedSpots] = useState(new Set<number>());
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
+    setError('');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setLatitude(location.coords.latitude.toFixed(4));
-        setLongitude(location.coords.longitude.toFixed(4));
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const locationData = { lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' };
+        setCurrentLocation(locationData);
+        searchPlaces(loc.coords.latitude, loc.coords.longitude);
+      } else {
+        setError('');
+        setCurrentLocation(null);
       }
     } catch (err) {
-      console.log('Could not get current location:', err);
-      // Set default location (center of US) if location fails
-      setLatitude('39.8283');
-      setLongitude('-98.5795');
+      setError('');
+      setCurrentLocation(null);
+    } finally {
+      setGettingLocation(false);
     }
   };
 
-  const refreshLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Location Permission Required', 'Please enable location permissions.');
-        setLocationLoading(false);
-        return;
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, {
+          params: { query: text, limit: 5 }
+        });
+        setSuggestions(response.data || []);
+      } catch (err) {
+        console.log('Autocomplete error:', err);
+        setSuggestions([]);
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-      setLocationLoading(false);
-      Alert.alert('Location Updated', `Refreshed to: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
-    } catch (err: any) {
-      setLocationLoading(false);
-      Alert.alert('Location Error', err.message || 'Unable to get your location.');
+    } else {
+      setSuggestions([]);
     }
   };
 
-  const searchParking = async () => {
+  const selectSuggestion = (suggestion: AutocompleteSuggestion) => {
+    const locationData = {
+      lat: suggestion.center[1],
+      lon: suggestion.center[0],
+      name: suggestion.short_name || suggestion.place_name
+    };
+    setCurrentLocation(locationData);
+    setSearchQuery(suggestion.short_name || suggestion.place_name);
+    setSuggestions([]);
+    searchPlaces(locationData.lat, locationData.lon);
+  };
+
+  const searchPlaces = async (lat: number, lon: number) => {
     setLoading(true);
-    setSpots([]);
     setError('');
+    setResults([]);
     try {
-      const resp = await axios.get(`${API_BASE}/api/trucker/parking`, {
-        params: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          radius_miles: parseInt(searchRadius, 10),
-        },
+      const resp = await axios.get(`${API_BASE}/api/boondocking/places`, {
+        params: { latitude: lat, longitude: lon, query: 'truck parking overnight', radius_miles: 50 }
       });
-      // Map API response to expected format
-      const mappedSpots = (resp.data.results || []).map((place: any) => ({
+      const mappedResults = (resp.data.results || []).map((place: any) => ({
+        place_id: place.place_id,
         name: place.name,
-        type: 'Truck Parking',
-        distance_miles: place.distance_miles,
+        address: place.address,
         latitude: place.latitude,
         longitude: place.longitude,
-        amenities: [],
-        restrictions: [],
+        distance_miles: place.distance_miles,
+        rating: place.rating,
+        is_open: place.is_open,
       }));
-      setSpots(mappedSpots);
-      if (mappedSpots.length === 0) {
-        setError('No truck parking found in this area. Try increasing the search radius.');
+      setResults(mappedResults);
+      if (mappedResults.length === 0) {
+        setError('No truck parking found in this area');
       }
     } catch (err: any) {
-      console.error('Truck parking search error:', err);
-      setError(err?.response?.data?.detail || 'Failed to find truck parking. Tap to retry.');
+      console.error('Search error:', err);
+      setError(err?.response?.data?.detail || 'Failed to search. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await searchParking();
-    setRefreshing(false);
-  };
-
-  const toggleSpotExpand = (index: number) => {
-    const newExpanded = new Set(expandedSpots);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedSpots(newExpanded);
-  };
-
-  const openInMaps = (spot: ParkingSpot) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`;
+  const openInMaps = (place: PlaceResult) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`;
     Linking.openURL(url);
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'rest_area': return '#22c55e';
-      case 'parking_lot': return '#3b82f6';
-      case 'truck_stop': return '#f59e0b';
-      default: return '#6b7280';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'rest_area': return 'bed';
-      case 'parking_lot': return 'car';
-      case 'truck_stop': return 'business';
-      default: return 'location';
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.title}>🅿️ Truck Parking</Text>
-          <Text style={styles.subtitle}>Rest areas and safe parking zones</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
 
-        <View style={styles.formContainer}>
-          {/* Location Display with Auto-detect */}
-          <View style={styles.locationBox}>
-            <View style={styles.locationBoxHeader}>
-              <Ionicons name="location" size={18} color="#22c55e" />
-              <Text style={styles.locationBoxLabel}>Your Location</Text>
-              <TouchableOpacity
-                style={styles.refreshLocationBtn}
-                onPress={refreshLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator size="small" color="#22c55e" />
-                ) : (
-                  <Ionicons name="refresh" size={18} color="#22c55e" />
-                )}
-              </TouchableOpacity>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <View style={styles.titleRow}>
+            <Ionicons name="car" size={28} color="#8b5cf6" />
+            <Text style={styles.title}>Truck Parking</Text>
+          </View>
+          <Text style={styles.subtitle}>Find safe overnight parking for commercial vehicles</Text>
+
+          {/* Search Input */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={18} color="#6b7280" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search city or address..."
+                placeholderTextColor="#6b7280"
+                value={searchQuery}
+                onChangeText={handleSearchQueryChange}
+                autoComplete="off"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSuggestions([]); }}>
+                  <Ionicons name="close-circle" size={18} color="#6b7280" />
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={styles.locationBoxCoords}>
-              {locationLoading ? 'Detecting...' : `${latitude}, ${longitude}`}
-            </Text>
-          </View>
-
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Search Radius (miles)</Text>
-            <TextInput
-              value={searchRadius}
-              onChangeText={setSearchRadius}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 25"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={searchParking}
-            style={[styles.searchButton, loading && styles.buttonDisabled]}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="search" size={20} color="#fff" />
-                <Text style={styles.searchButtonText}>Find Parking</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {error ? (
-            <TouchableOpacity style={styles.errorBox} onPress={searchParking}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {spots.length > 0 && (
-          <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>Found {spots.length} Parking Spot{spots.length !== 1 ? 's' : ''}</Text>
             
-            {spots.map((spot, index) => {
-              const isExpanded = expandedSpots.has(index);
-              const typeColor = getTypeColor(spot.type);
-              
-              return (
+            {/* Auto-detect location button */}
+            <TouchableOpacity 
+              style={styles.detectBtn} 
+              onPress={getCurrentLocation}
+              disabled={gettingLocation}
+            >
+              {gettingLocation ? (
+                <ActivityIndicator size="small" color="#8b5cf6" />
+              ) : (
+                <Ionicons name="locate" size={22} color="#8b5cf6" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.spotCard, isExpanded && styles.spotCardExpanded]}
-                  onPress={() => toggleSpotExpand(index)}
-                  activeOpacity={0.8}
+                  style={styles.suggestionItem}
+                  onPress={() => selectSuggestion(suggestion)}
                 >
-                  <View style={styles.spotHeader}>
-                    <View style={styles.spotHeaderLeft}>
-                      <View style={styles.nameRow}>
-                        <Ionicons name={getTypeIcon(spot.type) as any} size={20} color={typeColor} />
-                        <Text style={styles.spotName}>{spot.name}</Text>
-                      </View>
-                      <View style={styles.typeBadge} style={{ backgroundColor: typeColor + '20' }}>
-                        <Text style={[styles.typeBadgeText, { color: typeColor }]}>
-                          {spot.type.replace('_', ' ').toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-                    <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={24} color="#9ca3af" />
+                  <Ionicons name="location" size={18} color="#8b5cf6" />
+                  <Text style={styles.suggestionText}>{suggestion.place_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Current location badge */}
+          {currentLocation && (
+            <View style={styles.locationBadge}>
+              <Ionicons name="location" size={14} color="#10b981" />
+              <Text style={styles.locationText}>Searching near: {currentLocation.name}</Text>
+            </View>
+          )}
+          
+          {/* Prompt when no location */}
+          {!currentLocation && !loading && results.length === 0 && !gettingLocation && (
+            <View style={styles.promptBox}>
+              <Ionicons name="search" size={20} color="#8b5cf6" />
+              <Text style={styles.promptText}>Enter a city or tap the location icon to find truck parking</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Results */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#8b5cf6" />
+            <Text style={styles.loadingText}>Finding truck parking...</Text>
+          </View>
+        ) : error && results.length === 0 ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="car-outline" size={48} color="#6b7280" />
+            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorSubtext}>Try searching a different location</Text>
+          </View>
+        ) : (
+          <View style={styles.resultsContainer}>
+            {results.length > 0 && (
+              <Text style={styles.resultsCount}>{results.length} parking spots found</Text>
+            )}
+            {results.map((place, index) => (
+              <TouchableOpacity 
+                key={place.place_id || index}
+                style={styles.resultCard}
+                onPress={() => openInMaps(place)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.resultHeader}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="car" size={24} color="#8b5cf6" />
                   </View>
-
-                  <View style={styles.spotQuickInfo}>
-                    <View style={styles.quickInfoItem}>
-                      <Ionicons name="navigate" size={16} color="#06b6d4" />
-                      <Text style={styles.quickInfoText}>{spot.distance_miles.toFixed(1)} mi</Text>
-                    </View>
-                    {spot.capacity && (
-                      <View style={styles.quickInfoItem}>
-                        <Ionicons name="car" size={16} color="#22c55e" />
-                        <Text style={styles.quickInfoText}>{spot.capacity} spaces</Text>
-                      </View>
-                    )}
-                    {spot.fee && (
-                      <View style={styles.quickInfoItem}>
-                        <Ionicons name="cash" size={16} color={spot.fee === 'Free' ? '#22c55e' : '#f59e0b'} />
-                        <Text style={styles.quickInfoText}>{spot.fee}</Text>
-                      </View>
-                    )}
+                  <View style={styles.resultInfo}>
+                    <Text style={styles.resultName}>{place.name}</Text>
+                    <Text style={styles.resultAddress}>{place.address}</Text>
                   </View>
-
-                  {isExpanded && (
-                    <View style={styles.spotDetails}>
-                      {spot.amenities.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Amenities</Text>
-                          <View style={styles.tagContainer}>
-                            {spot.amenities.map((amenity, i) => (
-                              <View key={i} style={styles.tag}>
-                                <Text style={styles.tagText}>{amenity}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      {spot.restrictions.length > 0 && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Restrictions</Text>
-                          <View style={styles.tagContainer}>
-                            {spot.restrictions.map((restriction, i) => (
-                              <View key={i} style={[styles.tag, styles.restrictionTag]}>
-                                <Text style={styles.tagText}>{restriction}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-
-                      {spot.hours && (
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Hours</Text>
-                          <Text style={styles.detailValue}>{spot.hours}</Text>
-                        </View>
-                      )}
-
-                      <TouchableOpacity style={styles.directionsButton} onPress={() => openInMaps(spot)}>
-                        <Ionicons name="navigate" size={20} color="#fff" />
-                        <Text style={styles.directionsButtonText}>Get Directions</Text>
-                      </TouchableOpacity>
+                </View>
+                <View style={styles.resultMeta}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="navigate" size={16} color="#60a5fa" />
+                    <Text style={styles.metaText}>{place.distance_miles?.toFixed(1)} mi</Text>
+                  </View>
+                  {place.rating && (
+                    <View style={styles.metaItem}>
+                      <Ionicons name="star" size={16} color="#eab308" />
+                      <Text style={styles.metaText}>{place.rating}</Text>
                     </View>
                   )}
-                </TouchableOpacity>
-              );
-            })}
+                </View>
+                <View style={styles.tapHint}>
+                  <Ionicons name="map" size={16} color="#60a5fa" />
+                  <Text style={styles.tapHintText}>Tap for directions</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
+
+        <View style={styles.disclaimer}>
+          <Ionicons name="information-circle" size={20} color="#6b7280" />
+          <Text style={styles.disclaimerText}>
+            Always verify parking is allowed for commercial vehicles. Check local regulations and posted signs.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  header: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
-  },
-  backButton: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#a1a1aa',
-  },
-  formContainer: {
-    padding: 20,
-    backgroundColor: '#1a1a1a',
-    margin: 16,
-    borderRadius: 12,
-  },
-  locationBox: {
-    backgroundColor: '#1f1f23',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#22c55e20',
-  },
-  locationBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  locationBoxLabel: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  refreshLocationBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#22c55e15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationBoxCoords: {
-    color: '#22c55e',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  locationButton: {
-    backgroundColor: '#22c55e',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    gap: 8,
-  },
-  locationButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  inputRow: {
-    marginBottom: 16,
-  },
-  label: {
-    color: '#d4d4d8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#27272a',
-    color: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 15,
-  },
-  searchButton: {
-    backgroundColor: '#3b82f6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 10,
-    gap: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  errorBox: {
-    backgroundColor: '#422006',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  errorText: {
-    color: '#f59e0b',
-    fontSize: 13,
-    flex: 1,
-  },
-  resultsContainer: {
-    padding: 16,
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  spotCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#22c55e',
-  },
-  spotCardExpanded: {
-    borderLeftColor: '#3b82f6',
-  },
-  spotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  spotHeaderLeft: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  spotName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-    flex: 1,
-  },
-  typeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  typeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  spotQuickInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  quickInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickInfoText: {
-    color: '#a1a1aa',
-    fontSize: 13,
-  },
-  spotDetails: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#27272a',
-  },
-  detailSection: {
-    marginBottom: 12,
-  },
-  detailLabel: {
-    color: '#d4d4d8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  detailValue: {
-    color: '#a1a1aa',
-    fontSize: 14,
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: '#27272a',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  restrictionTag: {
-    backgroundColor: '#7c2d12',
-  },
-  tagText: {
-    color: '#d4d4d8',
-    fontSize: 12,
-  },
-  directionsButton: {
-    backgroundColor: '#3b82f6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 6,
-    marginTop: 12,
-  },
-  directionsButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  backButton: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 8 },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  content: { flex: 1 },
+  card: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, margin: 16, marginTop: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  subtitle: { color: '#9ca3af', fontSize: 13, marginBottom: 16 },
+  searchSection: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  searchInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  detectBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#27272a', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#8b5cf630' },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46', overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  promptBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#2e1065', borderRadius: 10, padding: 14, marginTop: 10 },
+  promptText: { color: '#c4b5fd', fontSize: 14, fontWeight: '500', flex: 1 },
+  loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { color: '#a1a1aa', fontSize: 14 },
+  errorContainer: { alignItems: 'center', paddingVertical: 40, gap: 12, paddingHorizontal: 20 },
+  errorText: { color: '#8b5cf6', fontSize: 15, textAlign: 'center' },
+  errorSubtext: { color: '#6b7280', fontSize: 13, textAlign: 'center' },
+  resultsContainer: { paddingHorizontal: 16, gap: 12 },
+  resultsCount: { color: '#a1a1aa', fontSize: 13, marginBottom: 4 },
+  resultCard: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#27272a' },
+  resultHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  iconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#2e1065', alignItems: 'center', justifyContent: 'center' },
+  resultInfo: { flex: 1 },
+  resultName: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  resultAddress: { color: '#a1a1aa', fontSize: 13 },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { color: '#d4d4d8', fontSize: 13 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#27272a' },
+  tapHintText: { color: '#60a5fa', fontSize: 13 },
+  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 16, margin: 16, backgroundColor: '#1c1917', borderRadius: 8 },
+  disclaimerText: { color: '#6b7280', fontSize: 12, flex: 1, lineHeight: 18 },
 });
