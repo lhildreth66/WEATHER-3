@@ -15,6 +15,9 @@ import asyncio
 import math
 import google.generativeai as genai
 
+# Import bridge height service
+from services.bridge_height_service import get_bridge_clearances_for_route
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
