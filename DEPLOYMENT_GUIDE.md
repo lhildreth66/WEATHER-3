@@ -37,8 +37,8 @@ Set these values (marked as `sync: false` in render.yaml):
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `MONGO_URL` | `mongodb+srv://user:pass@cluster.mongodb.net/routecast` | Your MongoDB Atlas connection string |
-| `MAPBOX_ACCESS_TOKEN` | `pk.eyJ1...` | Your Mapbox public token |
-| `GOOGLE_API_KEY` | `AIza...` | Your Google API key |
+| `MAPBOX_ACCESS_TOKEN` | (from your local .env) | Your Mapbox public token |
+| `GOOGLE_API_KEY` | (from your local .env) | Your Google API key |
 | `SENDGRID_API_KEY` | `SG.xxx...` | Your SendGrid API key |
 | `STRIPE_API_KEY` | `sk_live_...` or `sk_test_...` | Your Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` | From Stripe webhook setup (Step 4) |
