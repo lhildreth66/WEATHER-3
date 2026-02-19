@@ -218,6 +218,19 @@ class WaypointWeather(BaseModel):
     alerts: List[WeatherAlert] = []
     error: Optional[str] = None
 
+class BridgeClearanceAlert(BaseModel):
+    location: str
+    latitude: float
+    longitude: float
+    clearance_ft: float
+    vehicle_height_ft: float
+    margin_ft: float
+    warning_level: str  # safe, caution, danger
+    distance_miles: float
+    highway: Optional[str] = None
+    direction: Optional[str] = None
+    message: str
+
 class RouteWeatherResponse(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     origin: str
