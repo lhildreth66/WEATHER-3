@@ -202,8 +202,9 @@ ADMIN_API_KEY=<key>
 ## Pending Tasks
 
 ### P0 (Critical)
-- **Deploy backend to Render** - In progress, backend-only render.yaml ready
-- Integrate real bridge clearance data (OpenStreetMap/Overpass fallback)
+- ~~**Deploy backend to Render**~~ - DONE, backend live at api.routecastweather.com
+- ~~**Bridge Height Alerts (OSM/Overpass)**~~ - DONE, integrated into route endpoint
+- **Deploy frontend to Render** - In progress (user deploying)
 
 ### P1 (High Priority)
 - Integrate Push Notification Worker
