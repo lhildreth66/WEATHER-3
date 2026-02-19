@@ -86,8 +86,8 @@ export default function TruckServicesScreen() {
 
   const selectSuggestion = (suggestion: AutocompleteSuggestion) => {
     const locationData = {
-      lat: suggestion.center[1],
-      lon: suggestion.center[0],
+      lat: suggestion.coordinates[1],
+      lon: suggestion.coordinates[0],
       name: suggestion.short_name || suggestion.place_name
     };
     setCurrentLocation(locationData);
