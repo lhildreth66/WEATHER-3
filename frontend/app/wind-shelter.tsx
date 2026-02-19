@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import axios from 'axios';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,185 +7,138 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { API_BASE } from '../lib/apiConfig';
 
+interface GeocodeSuggestion { place_name: string; short_name: string; coordinates: [number, number]; }
+
+interface WindResult {
+  location: string;
+  wind_speed_mph: number;
+  wind_direction: string;
+  wind_gust_mph: number | null;
+  recommended_orientation: string;
+  shelter_score: number;
+  tips: string[];
+}
+
 export default function WindShelterScreen() {
   const router = useRouter();
-  const [latitude, setLatitude] = useState('34.05');
-  const [longitude, setLongitude] = useState('-111.03');
-  const [windDirection, setWindDirection] = useState('270'); // degrees (0-360)
-  const [gustSpeed, setGustSpeed] = useState('25'); // mph
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(true);
+  const [rvLength, setRvLength] = useState('30');
   const [loading, setLoading] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(true);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string>('');
+  const [result, setResult] = useState<WindResult | null>(null);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    getCurrentLocation();
-  }, []);
+  useEffect(() => { getCurrentLocation(); }, []);
 
   const getCurrentLocation = async () => {
+    setGettingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setLatitude(location.coords.latitude.toFixed(4));
-        setLongitude(location.coords.longitude.toFixed(4));
-      }
-    } catch (err) {
-      console.log('Could not get current location:', err);
-    } finally {
-      setLocationLoading(false);
-    }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCurrentLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude, name: 'Current Location' });
+      } else { setError('Enable location or search for a city'); }
+    } catch (err) { setError('Enable location or search for a city'); }
+    finally { setGettingLocation(false); }
   };
 
-  const refreshLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required.');
-        setLocationLoading(false);
-        return;
-      }
+  const handleSearchQueryChange = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length >= 2) {
+      try {
+        const response = await axios.get(`${API_BASE}/api/geocode/autocomplete`, { params: { query: text, limit: 5 } });
+        setSuggestions(response.data || []);
+        setShowSuggestions(true);
+      } catch (err) { setSuggestions([]); }
+    } else { setSuggestions([]); setShowSuggestions(false); }
+  };
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLatitude(location.coords.latitude.toFixed(4));
-      setLongitude(location.coords.longitude.toFixed(4));
-      Alert.alert('Location Updated', `Refreshed to: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to refresh location');
-    } finally {
-      setLocationLoading(false);
-    }
+  const selectLocation = (suggestion: GeocodeSuggestion) => {
+    setSearchQuery(suggestion.short_name);
+    setShowSuggestions(false);
+    const [lon, lat] = suggestion.coordinates;
+    setCurrentLocation({ lat, lon, name: suggestion.short_name });
   };
 
   const calculate = async () => {
-    setLoading(true);
-    setResult(null);
-    setError('');
+    if (!currentLocation) { setError('Please select a location first'); return; }
+    setLoading(true); setResult(null); setError('');
     try {
-      const resp = await axios.post(`${API_BASE}/api/wind-shelter/orientation`, {
-        predominant_dir_deg: parseInt(windDirection, 10),
-        gust_mph: parseInt(gustSpeed, 10),
+      const resp = await axios.post(`${API_BASE}/api/boondocking/wind-shelter`, {
+        latitude: currentLocation.lat, longitude: currentLocation.lon, rv_length_ft: parseFloat(rvLength) || 30,
       });
       setResult(resp.data);
-    } catch (err: any) {
-      console.error('Wind shelter error:', err);
-      setError(err?.response?.data?.detail || err?.message || 'Failed to calculate wind shelter');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { setError(err?.response?.data?.detail || 'Failed to calculate'); }
+    finally { setLoading(false); }
   };
 
-  const getRiskColor = (risk: string) => {
-    switch (risk.toLowerCase()) {
-      case 'low': return { color: '#4ade80' };
-      case 'medium': return { color: '#fbbf24' };
-      case 'high': return { color: '#f87171' };
-      default: return { color: '#e5e7eb' };
-    }
-  };
+  const getScoreColor = (score: number) => score >= 80 ? '#10b981' : score >= 50 ? '#eab308' : '#ef4444';
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#fff" /><Text style={styles.backText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={getCurrentLocation} disabled={gettingLocation}>{gettingLocation ? <ActivityIndicator size="small" color="#22d3ee" /> : <Ionicons name="locate" size={24} color="#22d3ee" />}</TouchableOpacity>
+      </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.title}>Wind Shelter</Text>
+          <Text style={styles.title}>🍃 Wind Shelter</Text>
           <Text style={styles.subtitle}>Get RV orientation recommendations for wind protection</Text>
 
-          <View style={styles.locationInfo}>
-            <Ionicons name="location" size={16} color="#06b6d4" />
-            <Text style={styles.locationText}>
-              {locationLoading ? 'Getting location...' : `Location: ${latitude}, ${longitude}`}
-            </Text>
-            {!locationLoading && (
-              <TouchableOpacity onPress={refreshLocation} style={styles.refreshBtn}>
-                <Ionicons name="refresh" size={18} color="#06b6d4" />
-              </TouchableOpacity>
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#6b7280" style={{ marginRight: 8 }} />
+              <TextInput style={styles.searchInput} value={searchQuery} onChangeText={handleSearchQueryChange} placeholder="Search city or address..." placeholderTextColor="#6b7280" />
+            </View>
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((s, i) => <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectLocation(s)}><Ionicons name="location" size={16} color="#22d3ee" /><Text style={styles.suggestionText}>{s.place_name}</Text></TouchableOpacity>)}
+              </View>
             )}
+            {currentLocation && <View style={styles.locationBadge}><Ionicons name="location" size={14} color="#10b981" /><Text style={styles.locationText}>{currentLocation.name}</Text></View>}
           </View>
 
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Wind Direction (0-360°)</Text>
-            <TextInput
-              value={windDirection}
-              onChangeText={setWindDirection}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 270 (from west)"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
+          <View style={styles.inputGroup}><Text style={styles.label}>RV Length (ft)</Text><TextInput value={rvLength} onChangeText={setRvLength} keyboardType="numeric" style={styles.input} placeholder="30" placeholderTextColor="#6b7280" /></View>
 
-          <View style={styles.inputRow}>
-            <Text style={styles.label}>Peak Gust Speed (mph)</Text>
-            <TextInput
-              value={gustSpeed}
-              onChangeText={setGustSpeed}
-              keyboardType="numeric"
-              style={styles.input}
-              placeholder="e.g., 25"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          <TouchableOpacity onPress={calculate} style={styles.button} disabled={loading}>
-            {loading ? <ActivityIndicator color="#1a1a1a" /> : <Text style={styles.buttonText}>Analyze</Text>}
+          <TouchableOpacity onPress={calculate} style={styles.button} disabled={loading || !currentLocation}>
+            {loading ? <ActivityIndicator color="#1a1a1a" /> : <><Ionicons name="leaf" size={20} color="#1a1a1a" /><Text style={styles.buttonText}>Check Wind Conditions</Text></>}
           </TouchableOpacity>
 
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>❌ {error}</Text>
-            </View>
-          )}
+          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
           {result && (
-            <View style={styles.resultBox}>
-              <Text style={styles.resultTitle}>🧭 Wind Shelter Recommendation</Text>
+            <View style={styles.resultContainer}>
+              <View style={styles.resultHeader}><Text style={styles.resultLocation}>{result.location}</Text></View>
               
-              {result.recommended_bearing_deg !== null && (
-                <View style={styles.bearingBox}>
-                  <Text style={styles.bearingLabel}>Recommended RV Orientation</Text>
-                  <Text style={styles.bearingValue}>{result.recommended_bearing_deg}°</Text>
+              <View style={styles.windSection}>
+                <View style={styles.windMain}>
+                  <Ionicons name="speedometer" size={32} color="#22d3ee" />
+                  <Text style={styles.windSpeed}>{result.wind_speed_mph} mph</Text>
+                  <Text style={styles.windLabel}>from {result.wind_direction}</Text>
                 </View>
-              )}
-              
-              {result.rationale_text && (
-                <Text style={styles.resultText}>💡 {result.rationale_text}</Text>
-              )}
-              
-              <View style={styles.statsRow}>
-                {result.risk_level && (
-                  <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Risk Level</Text>
-                    <Text style={[styles.statValue, getRiskColor(result.risk_level)]}>
-                      {result.risk_level.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                
-                {result.estimated_wind_reduction_pct !== null && (
-                  <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Wind Reduction</Text>
-                    <Text style={styles.statValue}>{result.estimated_wind_reduction_pct}%</Text>
-                  </View>
+                {result.wind_gust_mph && (
+                  <View style={styles.gustBadge}><Text style={styles.gustText}>Gusts up to {result.wind_gust_mph} mph</Text></View>
                 )}
               </View>
-              
-              {result.shelter_available !== null && (
-                <Text style={styles.shelterStatus}>
-                  {result.shelter_available ? '✅ Shelter Available' : '⚠️ Limited Shelter'}
-                </Text>
-              )}
+
+              <View style={styles.scoreSection}>
+                <View style={styles.scoreHeader}><Text style={styles.scoreLabel}>Shelter Score</Text><Text style={[styles.scoreValue, { color: getScoreColor(result.shelter_score) }]}>{result.shelter_score}/100</Text></View>
+                <View style={styles.scoreBar}><View style={[styles.scoreFill, { width: `${result.shelter_score}%`, backgroundColor: getScoreColor(result.shelter_score) }]} /></View>
+              </View>
+
+              <View style={styles.orientationBox}>
+                <Ionicons name="compass" size={24} color="#f59e0b" />
+                <View style={styles.orientationText}><Text style={styles.orientationLabel}>Recommended Orientation</Text><Text style={styles.orientationValue}>{result.recommended_orientation}</Text></View>
+              </View>
+
+              <View style={styles.tipsSection}>
+                <Text style={styles.tipsTitle}>Tips</Text>
+                {result.tips.map((tip, i) => <View key={i} style={styles.tipRow}><Text style={styles.tipText}>{tip}</Text></View>)}
+              </View>
             </View>
           )}
         </View>
@@ -196,33 +149,49 @@ export default function WindShelterScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
-  backButton: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   content: { flex: 1 },
-  card: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, margin: 16, gap: 12 },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  subtitle: { color: '#d4d4d8', fontSize: 14 },
-  locationInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111827', padding: 10, borderRadius: 8 },
-  locationText: { color: '#d4d4d8', fontSize: 12, flex: 1 },
-  refreshBtn: { padding: 4 },
-  locationButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1f2937', paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#06b6d4' },
-  locationButtonText: { color: '#06b6d4', fontWeight: '600', fontSize: 14 },
-  inputRow: { gap: 6 },
-  label: { color: '#e4e4e7', fontWeight: '600' },
-  input: { backgroundColor: '#111827', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  button: { backgroundColor: '#eab308', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  buttonText: { color: '#1a1a1a', fontWeight: '800' },
-  errorBox: { backgroundColor: '#7f1d1d', borderRadius: 8, padding: 12 },
-  errorText: { color: '#fecaca', fontSize: 14 },
-  resultBox: { backgroundColor: '#111827', borderRadius: 8, padding: 12, gap: 12 },
-  resultTitle: { color: '#06b6d4', fontSize: 16, fontWeight: '700' },
-  bearingBox: { backgroundColor: '#1f2937', borderRadius: 8, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: '#06b6d4' },
-  bearingLabel: { color: '#9ca3af', fontSize: 12, marginBottom: 4 },
-  bearingValue: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  resultText: { color: '#e5e7eb', fontSize: 14, lineHeight: 20 },
-  statsRow: { flexDirection: 'row', gap: 12 },
-  statBox: { flex: 1, backgroundColor: '#1f2937', borderRadius: 8, padding: 10, alignItems: 'center' },
-  statLabel: { color: '#9ca3af', fontSize: 11, marginBottom: 4 },
-  statValue: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  shelterStatus: { color: '#d4d4d8', fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  card: { backgroundColor: '#18181b', borderRadius: 16, padding: 20, margin: 16, borderWidth: 1, borderColor: '#27272a' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  subtitle: { color: '#a1a1aa', fontSize: 14, marginTop: 4, marginBottom: 12 },
+  searchSection: { marginBottom: 16, zIndex: 10 },
+  searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#3f3f46' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 },
+  suggestionsContainer: { backgroundColor: '#27272a', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#3f3f46' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: '#3f3f46' },
+  suggestionText: { color: '#e4e4e7', fontSize: 14, flex: 1 },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  locationText: { color: '#10b981', fontSize: 13, fontWeight: '500' },
+  inputGroup: { marginBottom: 16 },
+  label: { color: '#a1a1aa', fontSize: 13, marginBottom: 6 },
+  input: { backgroundColor: '#27272a', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#3f3f46' },
+  button: { backgroundColor: '#22d3ee', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 10 },
+  buttonText: { color: '#1a1a1a', fontWeight: '800', fontSize: 16 },
+  errorBox: { backgroundColor: '#450a0a', borderRadius: 8, padding: 12, marginTop: 12 },
+  errorText: { color: '#fca5a5', fontSize: 14 },
+  resultContainer: { marginTop: 20, gap: 16 },
+  resultHeader: { alignItems: 'center' },
+  resultLocation: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  windSection: { alignItems: 'center', backgroundColor: '#0e3a4f', borderRadius: 12, padding: 20 },
+  windMain: { alignItems: 'center', gap: 4 },
+  windSpeed: { color: '#22d3ee', fontSize: 36, fontWeight: '800' },
+  windLabel: { color: '#67e8f9', fontSize: 14 },
+  gustBadge: { backgroundColor: '#164e63', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginTop: 10 },
+  gustText: { color: '#67e8f9', fontSize: 12 },
+  scoreSection: { gap: 8 },
+  scoreHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  scoreLabel: { color: '#a1a1aa', fontSize: 14 },
+  scoreValue: { fontSize: 24, fontWeight: '800' },
+  scoreBar: { height: 10, backgroundColor: '#27272a', borderRadius: 5, overflow: 'hidden' },
+  scoreFill: { height: '100%', borderRadius: 5 },
+  orientationBox: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#422006', borderRadius: 12, padding: 16 },
+  orientationText: { flex: 1 },
+  orientationLabel: { color: '#fbbf24', fontSize: 12 },
+  orientationValue: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  tipsSection: { backgroundColor: '#1f1f23', borderRadius: 12, padding: 16, gap: 8 },
+  tipsTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  tipRow: { paddingVertical: 4 },
+  tipText: { color: '#d4d4d8', fontSize: 14, lineHeight: 20 },
 });
