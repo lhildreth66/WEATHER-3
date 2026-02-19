@@ -164,7 +164,7 @@ curl -H "X-Admin-Key: YOUR_ADMIN_KEY" \
 - Verify CNAME records with: `dig api.routecastweather.com CNAME`
 
 ### Stripe webhooks failing:
-- Verify webhook URL is exactly: `https://api.routecastweather.com/api/webhooks/stripe`
+- Verify webhook URL is exactly: `https://api.routecastweather.com/api/webhook/stripe`
 - Check `STRIPE_WEBHOOK_SECRET` matches the signing secret from Stripe dashboard
 - Check Stripe webhook logs for error details
 
