@@ -714,9 +714,19 @@ export default function HomeScreen() {
                     onFocus={() => origin.length >= 2 && setShowOriginSuggestions(originSuggestions.length > 0)}
                     onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 200)}
                     returnKeyType="next"
+                    data-testid="origin-input"
                   />
                   {autocompleteLoading && origin.length >= 2 && (
                     <ActivityIndicator size="small" color="#eab308" style={{ marginRight: 8 }} />
+                  )}
+                  {origin.length > 0 && (
+                    <TouchableOpacity 
+                      onPress={() => { setOrigin(''); setOriginSuggestions([]); setShowOriginSuggestions(false); }} 
+                      style={styles.clearButton}
+                      data-testid="clear-origin-btn"
+                    >
+                      <Ionicons name="close-circle" size={18} color="#6b7280" />
+                    </TouchableOpacity>
                   )}
                 </View>
                 {/* Origin Suggestions Dropdown */}
