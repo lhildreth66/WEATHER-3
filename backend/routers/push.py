@@ -93,7 +93,7 @@ async def unregister_push_token(
     
     push_service = PushNotificationService(db)
     success = await push_service.unregister_push_token(
-        user_id=user["user_id"],
+        user_id=user["sub"],
         push_token=token
     )
     
