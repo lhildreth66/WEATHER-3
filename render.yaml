@@ -54,7 +54,7 @@ services:
     runtime: static
     region: oregon
     rootDir: frontend
-    buildCommand: yarn install && yarn build:web
+    buildCommand: yarn install && npx expo export --platform web
     staticPublishPath: dist
     headers:
       - path: /*
