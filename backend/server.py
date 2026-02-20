@@ -2777,41 +2777,74 @@ async def find_truck_repair(latitude: float, longitude: float, radius_miles: int
     return PlacesSearchResponse(results=results[:15], total=len(results))
 
 @api_router.get("/trucker/weight-restrictions")
-async def find_weight_restrictions(latitude: float, longitude: float, radius_miles: int = 30):
-    """Find weight-restricted routes."""
+async def find_weight_restrictions(
+    latitude: float,
+    longitude: float,
+    vehicle_weight_lbs: float = 80000,
+    radius_miles: int = 20
+):
+    """Find weight-restricted routes using OpenStreetMap data."""
     
-    location_name = await reverse_geocode(latitude, longitude) or "Unknown"
+    from services.weight_restriction_service import get_weight_restrictions
     
-    # In production, this would query DOT road restriction databases
-    # For now, provide general guidance
-    restrictions = [
-        {
-            "type": "general_info",
-            "title": "Federal Weight Limits",
-            "description": "Interstate highways: 80,000 lbs GVW max, 20,000 lbs single axle, 34,000 lbs tandem axle",
-            "source": "FHWA"
-        },
-        {
-            "type": "seasonal",
-            "title": "Spring Thaw Restrictions",
-            "description": "Many states impose seasonal weight limits during spring thaw (March-May). Check state DOT.",
-            "applies_to": "Northern states"
-        },
-        {
-            "type": "bridge",
-            "title": "Bridge Weight Limits",
-            "description": "Older bridges may have posted weight limits below federal maximums. Watch for signage.",
-            "recommendation": "Plan route using truck GPS with bridge data"
+    try:
+        result = await get_weight_restrictions(
+            latitude=latitude,
+            longitude=longitude,
+            vehicle_weight_lbs=vehicle_weight_lbs,
+            radius_miles=radius_miles
+        )
+        
+        # Add general info alongside OSM results
+        general_info = [
+            {
+                "type": "general_info",
+                "title": "Federal Weight Limits",
+                "description": "Interstate highways: 80,000 lbs GVW max, 20,000 lbs single axle, 34,000 lbs tandem axle",
+                "source": "FHWA"
+            },
+            {
+                "type": "seasonal",
+                "title": "Spring Thaw Restrictions",
+                "description": "Many states impose seasonal weight limits during spring thaw (March-May). Check state DOT.",
+                "applies_to": "Northern states"
+            }
+        ]
+        
+        return {
+            "location": await reverse_geocode(latitude, longitude) or "Unknown",
+            "latitude": latitude,
+            "longitude": longitude,
+            "vehicle_weight_lbs": vehicle_weight_lbs,
+            "restrictions": result.get("results", []),
+            "total_found": result.get("total", 0),
+            "general_info": general_info,
+            "source": result.get("source"),
+            "warning": result.get("warning"),
+            "recommendation": "Always verify weight limits with posted signage. Check state DOT for seasonal restrictions."
         }
-    ]
-    
-    return {
-        "location": location_name,
-        "latitude": latitude,
-        "longitude": longitude,
-        "restrictions": restrictions,
-        "recommendation": "Use a commercial truck GPS or routing app for accurate weight restriction data. Check state DOT for current seasonal restrictions."
-    }
+        
+    except Exception as e:
+        logger.error(f"Error in weight restrictions: {e}")
+        # Fallback to general info only
+        return {
+            "location": await reverse_geocode(latitude, longitude) or "Unknown",
+            "latitude": latitude,
+            "longitude": longitude,
+            "vehicle_weight_lbs": vehicle_weight_lbs,
+            "restrictions": [],
+            "total_found": 0,
+            "general_info": [
+                {
+                    "type": "general_info",
+                    "title": "Federal Weight Limits",
+                    "description": "Interstate highways: 80,000 lbs GVW max, 20,000 lbs single axle, 34,000 lbs tandem axle",
+                    "source": "FHWA"
+                }
+            ],
+            "error": "Could not fetch OSM data",
+            "recommendation": "Use a commercial truck GPS or check state DOT for weight restriction data."
+        }
 
 
 # ==================== Water Budget API ====================
