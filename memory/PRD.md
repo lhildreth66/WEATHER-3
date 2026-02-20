@@ -203,12 +203,13 @@ ADMIN_API_KEY=<key>
 
 ### P0 (Critical)
 - ~~**Deploy backend to Render**~~ - DONE, backend live at api.routecastweather.com
-- ~~**Bridge Height Alerts (OSM/Overpass)**~~ - DONE, integrated into route endpoint
+- ~~**Deploy frontend to Render**~~ - DONE, frontend live at app.routecastweather.com
+- ~~**Bridge Height Alerts (OSM/Overpass)**~~ - DONE, integrated into route + trucker endpoints
 - ~~**Push Notification Worker**~~ - DONE, token registration + route monitors
-- **Deploy frontend to Render** - In progress (user deploying)
+- ~~**Weight-Restricted Roads**~~ - DONE, real OSM data integration
 
 ### P1 (High Priority)
-- Fix Truck Weight Restricted Roads (real data source)
+- **Redeploy backend** - Push code to trigger Render redeploy with new features
 - Fix white bar autofill bug on address fields
 - Complete Apple IAP implementation
 - Complete Google Play Billing implementation
